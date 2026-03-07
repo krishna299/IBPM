@@ -153,12 +153,12 @@ async function main() {
   // ─── 3. ADMIN USER ────────────────────────────────────
   const hashedPassword = await bcrypt.hash("Admin@123", 12);
   const adminUser = await prisma.user.upsert({
-    where: { email: "admin@estheticinsights.com" },
-    update: { passwordHash: hashedPassword },
+    where: { email: "admin@estheticinsights.com" },     
+    update: { password: hashedPassword },
     create: {
       email: "admin@estheticinsights.com",
       name: "Shivam (Admin)",
-      passwordHash: hashedPassword,
+      password: hashedPassword,
       roleId: roles["Admin"].id,
       isActive: true,
     },
@@ -171,7 +171,7 @@ async function main() {
     create: {
       email: "sales@estheticinsights.com",
       name: "Sales Manager",
-      passwordHash: hashedPassword,
+      password: hashedPassword,
       roleId: roles["Sales Manager"].id,
       isActive: true,
     },
@@ -183,7 +183,7 @@ async function main() {
     create: {
       email: "production@estheticinsights.com",
       name: "Production Manager",
-      passwordHash: hashedPassword,
+      password: hashedPassword,
       roleId: roles["Production Manager"].id,
       isActive: true,
     },
