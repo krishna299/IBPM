@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, WarehouseType } from "@prisma/client";
+
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -347,7 +348,7 @@ async function main() {
       city: "Hyderabad",
       state: "Telangana",
       address: "Hyderabad, Telangana",
-      warehouseType: "GENERAL"
+      warehouseType: "GENERAL" as WarehouseType 
     },
     { 
       name: "FG Store",
@@ -355,7 +356,7 @@ async function main() {
       city: "Hyderabad",
       state: "Telangana",
       address: "Hyderabad, Telangana",
-      warehouseType: "FINISHED_GOODS"
+      warehouseType: "FINISHED_GOODS" as WarehouseType
     },
     { 
       name: "RM Store",
@@ -363,7 +364,7 @@ async function main() {
       city: "Hyderabad",
       state: "Telangana",
       address: "Hyderabad, Telangana",
-      warehouseType: "RAW_MATERIALS"
+      warehouseType: "RAW_MATERIALS" as WarehouseType
     },
     { 
       name: "Packaging Store",
@@ -371,7 +372,7 @@ async function main() {
       city: "Hyderabad",
       state: "Telangana",
       address: "Hyderabad, Telangana",
-      warehouseType: "PACKAGING"
+      warehouseType: "PACKAGING" as WarehouseType
     }
   ];
 
