@@ -272,11 +272,11 @@ async function main() {
 
   // ─── 6. TAX CONFIGS (Indian GST) ─────────────────────
   const taxData = [
-    { name: "GST 5%", hsnCode: "3304", cgstPercent: 2.5, sgstPercent: 2.5, igstPercent: 5, cessPercent: 0 },
-    { name: "GST 12%", hsnCode: "3305", cgstPercent: 6, sgstPercent: 6, igstPercent: 12, cessPercent: 0 },
-    { name: "GST 18%", hsnCode: "3307", cgstPercent: 9, sgstPercent: 9, igstPercent: 18, cessPercent: 0 },
-    { name: "GST 28%", hsnCode: "3303", cgstPercent: 14, sgstPercent: 14, igstPercent: 28, cessPercent: 0 },
-    { name: "GST Exempt", hsnCode: "", cgstPercent: 0, sgstPercent: 0, igstPercent: 0, cessPercent: 0 },
+    { name: "GST 5%", rate: 5, hsnCode: "3304", cgstPercent: 2.5, sgstPercent: 2.5, igstPercent: 5, cessPercent: 0 },
+    { name: "GST 12%", rate: 12, hsnCode: "3305", cgstPercent: 6, sgstPercent: 6, igstPercent: 12, cessPercent: 0 },
+    { name: "GST 18%", rate: 18, hsnCode: "3307", cgstPercent: 9, sgstPercent: 9, igstPercent: 18, cessPercent: 0 },
+    { name: "GST 28%", rate: 28, hsnCode: "3303", cgstPercent: 14, sgstPercent: 14, igstPercent: 28, cessPercent: 0 },
+    { name: "GST Exempt", rate: 0, hsnCode: "", cgstPercent: 0, sgstPercent: 0, igstPercent: 0, cessPercent: 0 },
   ];
 
   for (const tax of taxData) {
