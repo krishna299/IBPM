@@ -32,7 +32,12 @@ async function main() {
     modules[name] = await prisma.module.upsert({
       where: { name },
       update: {},
-      create: { name, description: `${name.charAt(0).toUpperCase() + name.slice(1)} module` },
+      create: { 
+  name,
+  label: name.charAt(0).toUpperCase() + name.slice(1),
+  icon: null,
+  sortOrder: 0
+},
     });
   }
   console.log(`✅ ${moduleNames.length} modules created`);

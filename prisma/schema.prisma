@@ -55,6 +55,7 @@ model Role {
 model Module {
   id          String   @id @default(cuid())
   name        String   @unique
+  description String?
   label       String
   icon        String?
   sortOrder   Int      @default(0)
