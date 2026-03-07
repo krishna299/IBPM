@@ -226,13 +226,20 @@ async function main() {
     const parent = await prisma.category.upsert({
       where: { id: cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-cat" },
       update: {},
-      create: { name: cat.name },
+      create: { 
+        name: cat.name,
+        slug: cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-")
+      },
     });
     for (const childName of cat.children) {
       await prisma.category.upsert({
         where: { id: childName.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-") },
         update: {},
-        create: { name: childName, parentId: parent.id },
+        create: { 
+          name: childName,
+          slug: childName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+          parentId: parent.id
+        },
       });
     }
   }
