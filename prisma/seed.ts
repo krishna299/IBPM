@@ -313,21 +313,21 @@ async function main() {
 
   // ─── 8. PACKAGING OPTIONS ─────────────────────────────
   const packagingData = [
-    { name: "50ml Bottle", materialType: "PET", size: "50ml", costPerUnit: 8.50 },
-    { name: "100ml Bottle", materialType: "PET", size: "100ml", costPerUnit: 12.00 },
-    { name: "200ml Bottle", materialType: "PET", size: "200ml", costPerUnit: 18.00 },
-    { name: "500ml Bottle", materialType: "HDPE", size: "500ml", costPerUnit: 25.00 },
-    { name: "30ml Jar", materialType: "Glass", size: "30ml", costPerUnit: 15.00 },
-    { name: "50ml Jar", materialType: "Glass", size: "50ml", costPerUnit: 20.00 },
-    { name: "100ml Jar", materialType: "Glass", size: "100ml", costPerUnit: 28.00 },
-    { name: "30ml Tube", materialType: "Aluminium", size: "30ml", costPerUnit: 6.00 },
-    { name: "50ml Tube", materialType: "Aluminium", size: "50ml", costPerUnit: 8.00 },
-    { name: "100ml Tube", materialType: "Laminate", size: "100ml", costPerUnit: 10.00 },
-    { name: "Pump Dispenser", materialType: "PP", size: "Standard", costPerUnit: 5.00 },
-    { name: "Flip Cap", materialType: "PP", size: "Standard", costPerUnit: 2.50 },
-    { name: "Dropper Cap", materialType: "Glass+PP", size: "Standard", costPerUnit: 8.00 },
-    { name: "Unit Carton Box", materialType: "Cardboard", size: "Standard", costPerUnit: 4.00 },
-    { name: "Shrink Wrap", materialType: "PVC", size: "Standard", costPerUnit: 1.50 },
+    { name: "50ml Bottle", type: "BOTTLE", materialType: "PET", size: "50ml", costPerUnit: 8.50 },
+    { name: "100ml Bottle", type: "BOTTLE", materialType: "PET", size: "100ml", costPerUnit: 12.00 },
+    { name: "200ml Bottle", type: "BOTTLE", materialType: "PET", size: "200ml", costPerUnit: 18.00 },
+    { name: "500ml Bottle", type: "BOTTLE", materialType: "HDPE", size: "500ml", costPerUnit: 25.00 },
+
+    { name: "30ml Jar", type: "JAR", materialType: "Glass", size: "30ml", costPerUnit: 15.00 },
+    { name: "50ml Jar", type: "JAR", materialType: "Glass", size: "50ml", costPerUnit: 20.00 },
+
+    { name: "30ml Tube", type: "TUBE", materialType: "Aluminium", size: "30ml", costPerUnit: 6.00 },
+    { name: "50ml Tube", type: "TUBE", materialType: "Aluminium", size: "50ml", costPerUnit: 8.00 },
+
+    { name: "Pump Dispenser", type: "CAP", materialType: "PP", size: "Standard", costPerUnit: 5.00 },
+    { name: "Flip Cap", type: "CAP", materialType: "PP", size: "Standard", costPerUnit: 2.50 },
+
+    { name: "Unit Carton Box", type: "BOX", materialType: "Cardboard", size: "Standard", costPerUnit: 4.00 },
   ];
 
   for (const pkg of packagingData) {
