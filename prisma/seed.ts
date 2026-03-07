@@ -407,15 +407,16 @@ async function main() {
   console.log(`✅ ${sequences.length} number sequences initialized`);
 
   // ─── 11. DEFAULT PRICE LIST ───────────────────────────
-  await prisma.priceList.upsert({
-    where: { id: "default-mpl" },
-    update: {},
-    create: {
-      name: "Master Price List",
-      description: "Default price list for all products",
-      currency: "INR",
-    },
-  });
+  // await prisma.priceList.upsert({
+  //   where: { id: "default-mpl" },
+  //   update: {},
+  //   create: {
+  //     name: "Master Price List",
+  //     description: "Default price list for all products",
+  //     currency: "INR",
+  //   },
+  // });
+  
   console.log("✅ Default price list created");
 
   // ─── 12. SYSTEM SETTINGS ──────────────────────────────
