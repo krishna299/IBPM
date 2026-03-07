@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/components/shared/auth-provider";
+import { cn } from "@/lib/utils";
+
+const geist = GeistSans;
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={cn("font-sans", geist.variable)}>
       <body className={inter.className}>
         <AuthProvider>
           {children}

@@ -306,30 +306,31 @@ model ShippingAddress {
 // ==========================================
 
 model Vendor {
-  id              String     @id @default(cuid())
-  vendorType      VendorType
-  companyName     String
-  contactName     String
-  email           String     @unique
-  phone           String
-  gstNumber       String?
-  panNumber       String?
-  address         Json
-  leadTimeDays    Int        @default(7)
-  paymentTermsDays Int       @default(30)
-  rating          Float      @default(3)
-  bankDetails     Json?
-  isActive        Boolean    @default(true)
-  notes           String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id               String     @id @default(cuid())
+  vendorType       VendorType
+  companyName      String
+  contactName      String
+  email            String     @unique
+  phone            String
+  gstNumber        String?
+  panNumber        String?
+  address          Json
+  leadTimeDays     Int        @default(7)
+  paymentTermsDays Int        @default(30)
+  rating           Float      @default(3)
+  bankDetails      Json?
+  isActive         Boolean    @default(true)
+  notes            String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   // Zoho mapping
-  zohoVendorId    String?
+  zohoVendorId     String?
 
   // Relations
-  purchaseOrders  PurchaseOrder[]
-  grns            GRN[]
+  purchaseOrders   PurchaseOrder[]
+  grns             GRN[]
+  packagingOptions PackagingOption[]   // ✅ add this
 
   @@map("vendors")
 }
