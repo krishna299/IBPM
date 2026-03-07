@@ -341,10 +341,38 @@ async function main() {
 
   // ─── 9. WAREHOUSES ────────────────────────────────────
   const warehousesData = [
-    { name: "Main Warehouse", code: "WH-MAIN", city: "Hyderabad", state: "Telangana", warehouseType: "GENERAL" },
-    { name: "FG Store", code: "WH-FG", city: "Hyderabad", state: "Telangana", warehouseType: "FINISHED_GOODS" },
-    { name: "RM Store", code: "WH-RM", city: "Hyderabad", state: "Telangana", warehouseType: "RAW_MATERIALS" },
-    { name: "Packaging Store", code: "WH-PKG", city: "Hyderabad", state: "Telangana", warehouseType: "PACKAGING" },
+    { 
+      name: "Main Warehouse",
+      code: "WH-MAIN",
+      city: "Hyderabad",
+      state: "Telangana",
+      address: "Hyderabad, Telangana",
+      warehouseType: "GENERAL"
+    },
+    { 
+      name: "FG Store",
+      code: "WH-FG",
+      city: "Hyderabad",
+      state: "Telangana",
+      address: "Hyderabad, Telangana",
+      warehouseType: "FINISHED_GOODS"
+    },
+    { 
+      name: "RM Store",
+      code: "WH-RM",
+      city: "Hyderabad",
+      state: "Telangana",
+      address: "Hyderabad, Telangana",
+      warehouseType: "RAW_MATERIALS"
+    },
+    { 
+      name: "Packaging Store",
+      code: "WH-PKG",
+      city: "Hyderabad",
+      state: "Telangana",
+      address: "Hyderabad, Telangana",
+      warehouseType: "PACKAGING"
+    }
   ];
 
   for (const wh of warehousesData) {
