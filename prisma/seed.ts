@@ -290,17 +290,17 @@ async function main() {
 
   // ─── 7. PRODUCT TYPES ─────────────────────────────────
   const productTypes = [
-    { name: "Cream", description: "Cream-based products" },
-    { name: "Gel", description: "Gel-based products" },
-    { name: "Lotion", description: "Lotion formulations" },
-    { name: "Oil", description: "Oil-based products" },
-    { name: "Serum", description: "Concentrated serum formulations" },
-    { name: "Powder", description: "Powder products" },
-    { name: "Liquid", description: "Liquid formulations" },
-    { name: "Balm", description: "Balm/wax-based products" },
-    { name: "Spray", description: "Spray formulations" },
-    { name: "Paste", description: "Paste formulations" },
-  ];
+  { code: "CRM", name: "Cream", description: "Cream-based products" },
+  { code: "GEL", name: "Gel", description: "Gel-based products" },
+  { code: "LOT", name: "Lotion", description: "Lotion formulations" },
+  { code: "OIL", name: "Oil", description: "Oil-based products" },
+  { code: "SER", name: "Serum", description: "Concentrated serum formulations" },
+  { code: "PWD", name: "Powder", description: "Powder products" },
+  { code: "LIQ", name: "Liquid", description: "Liquid formulations" },
+  { code: "BAL", name: "Balm", description: "Balm/wax-based products" },
+  { code: "SPR", name: "Spray", description: "Spray formulations" },
+  { code: "PST", name: "Paste", description: "Paste formulations" },
+];
 
   for (const pt of productTypes) {
     await prisma.productType.upsert({
