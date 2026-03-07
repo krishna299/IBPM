@@ -1,0 +1,1085 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// AUTH & RBAC
+// ==========================================
+
+model User {
+  id             String    @id @default(cuid())
+  name           String
+  email          String    @unique
+  password       String
+  mobile         String?
+  department     String?
+  avatar         String?
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  roleId         String
+  role           Role      @relation(fields: [roleId], references: [id])
+
+  // Relations
+  salesOrders    SalesOrder[]
+  purchaseOrders PurchaseOrder[]
+  productionRecords ProductionRecord[]
+  qcReports      QCReport[]
+  auditLogs      AuditLog[]
+  warehouseManaged Warehouse[] @relation("WarehouseManager")
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  label       String
+  icon        String?
+  sortOrder   Int      @default(0)
+  parentId    String?
+  parent      Module?  @relation("ModuleChildren", fields: [parentId], references: [id])
+  children    Module[] @relation("ModuleChildren")
+  isActive    Boolean  @default(true)
+
+  permissions RolePermission[]
+
+  @@map("modules")
+}
+
+model RolePermission {
+  id       String  @id @default(cuid())
+  roleId   String
+  moduleId String
+  canView  Boolean @default(false)
+  canCreate Boolean @default(false)
+  canEdit  Boolean @default(false)
+  canDelete Boolean @default(false)
+  canApprove Boolean @default(false)
+  canExport Boolean @default(false)
+
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, moduleId])
+  @@map("role_permissions")
+}
+
+// ==========================================
+// MASTER DATA — CATEGORIES & TYPES
+// ==========================================
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  imageUrl    String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  parentId    String?
+  parent      Category? @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+
+  @@map("categories")
+}
+
+model ProductType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+
+  products    Product[]
+
+  @@map("product_types")
+}
+
+model UnitOfMeasure {
+  id               String  @id @default(cuid())
+  name             String  @unique
+  abbreviation     String  @unique
+  baseUnit         String?
+  conversionFactor Float   @default(1)
+
+  products         Product[]
+
+  @@map("units_of_measure")
+}
+
+model TaxConfig {
+  id            String   @id @default(cuid())
+  name          String
+  rate          Float
+  taxType       TaxType  @default(GST)
+  hsnRange      String?
+  effectiveFrom DateTime @default(now())
+  effectiveTo   DateTime?
+  isActive      Boolean  @default(true)
+  zohoTaxId     String?
+
+  products      Product[]
+  orderItems    SalesOrderItem[]
+  invoiceItems  InvoiceItem[]
+
+  @@map("tax_configs")
+}
+
+enum TaxType {
+  GST
+  IGST
+  EXEMPT
+}
+
+// ==========================================
+// MASTER DATA — PRODUCTS (FG / RM / PM)
+// ==========================================
+
+model Product {
+  id               String      @id @default(cuid())
+  sku              String      @unique
+  name             String
+  description      String?
+  itemType         ItemType
+  hsnCode          String?
+  sellingPrice     Float       @default(0)
+  costPrice        Float       @default(0)
+  weightG          Float?
+  volumeMl         Float?
+  shelfLifeMonths  Int?
+  reorderLevel     Int         @default(0)
+  isComposite      Boolean     @default(false)
+  isActive         Boolean     @default(true)
+  images           String[]
+  specifications   Json?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Foreign keys
+  categoryId       String?
+  category         Category?   @relation(fields: [categoryId], references: [id])
+  productTypeId    String?
+  productType      ProductType? @relation(fields: [productTypeId], references: [id])
+  unitId           String?
+  unit             UnitOfMeasure? @relation(fields: [unitId], references: [id])
+  taxConfigId      String?
+  taxConfig        TaxConfig?  @relation(fields: [taxConfigId], references: [id])
+
+  // Zoho mapping
+  zohoItemId       String?
+
+  // Relations
+  bomParent        BOMItem[]   @relation("BOMParent")
+  bomChild         BOMItem[]   @relation("BOMChild")
+  inventory        Inventory[]
+  inventoryMovements InventoryMovement[]
+  salesOrderItems  SalesOrderItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+  productionRecords ProductionRecord[]
+  priceListItems   PriceListItem[]
+  packagingOptions ProductPackaging[]
+  qcReports        QCReport[]
+
+  @@map("products")
+}
+
+enum ItemType {
+  FG   // Finished Goods
+  RM   // Raw Material
+  PM   // Packaging Material
+  CONSUMABLE
+}
+
+// ==========================================
+// MASTER DATA — BOM (Bill of Materials)
+// ==========================================
+
+model BOMItem {
+  id           String  @id @default(cuid())
+  parentId     String
+  parent       Product @relation("BOMParent", fields: [parentId], references: [id], onDelete: Cascade)
+  childId      String
+  child        Product @relation("BOMChild", fields: [childId], references: [id])
+  quantity     Float
+  unit         String?
+  wastagePercent Float @default(0)
+  notes        String?
+  sortOrder    Int     @default(0)
+
+  @@unique([parentId, childId])
+  @@map("bom_items")
+}
+
+// ==========================================
+// MASTER DATA — CUSTOMERS
+// ==========================================
+
+model Customer {
+  id              String       @id @default(cuid())
+  customerType    CustomerType
+  companyName     String?
+  contactName     String
+  email           String       @unique
+  phone           String
+  altPhone        String?
+  gstNumber       String?
+  panNumber       String?
+  billingAddress  Json
+  paymentTermsDays Int         @default(0)
+  creditLimit     Float        @default(0)
+  outstandingBalance Float     @default(0)
+  isActive        Boolean      @default(true)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Zoho mapping
+  zohoContactId   String?
+
+  // Price list
+  priceListId     String?
+  priceList       PriceList?   @relation(fields: [priceListId], references: [id])
+
+  // Relations
+  shippingAddresses ShippingAddress[]
+  salesOrders      SalesOrder[]
+  invoices         Invoice[]
+  payments         Payment[]
+
+  @@map("customers")
+}
+
+enum CustomerType {
+  B2B
+  B2C
+  DISTRIBUTOR
+}
+
+model ShippingAddress {
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label       String   @default("Default")
+  contactName String
+  phone       String
+  line1       String
+  line2       String?
+  city        String
+  state       String
+  pincode     String
+  country     String   @default("India")
+  isDefault   Boolean  @default(false)
+
+  salesOrders SalesOrder[]
+
+  @@map("shipping_addresses")
+}
+
+// ==========================================
+// MASTER DATA — VENDORS
+// ==========================================
+
+model Vendor {
+  id              String     @id @default(cuid())
+  vendorType      VendorType
+  companyName     String
+  contactName     String
+  email           String     @unique
+  phone           String
+  gstNumber       String?
+  panNumber       String?
+  address         Json
+  leadTimeDays    Int        @default(7)
+  paymentTermsDays Int       @default(30)
+  rating          Float      @default(3)
+  bankDetails     Json?
+  isActive        Boolean    @default(true)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Zoho mapping
+  zohoVendorId    String?
+
+  // Relations
+  purchaseOrders  PurchaseOrder[]
+  grns            GRN[]
+
+  @@map("vendors")
+}
+
+enum VendorType {
+  RAW_MATERIAL
+  PACKAGING
+  LOGISTICS
+  OTHER
+}
+
+// ==========================================
+// MASTER DATA — WAREHOUSES
+// ==========================================
+
+model Warehouse {
+  id             String        @id @default(cuid())
+  name           String        @unique
+  code           String        @unique
+  address        Json
+  warehouseType  WarehouseType
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  managerId      String?
+  manager        User?         @relation("WarehouseManager", fields: [managerId], references: [id])
+
+  // Zoho mapping
+  zohoWarehouseId String?
+
+  // Relations
+  inventory      Inventory[]
+  inventoryMovements InventoryMovement[]
+  salesOrders    SalesOrder[]
+  purchaseOrders PurchaseOrder[]
+  productionRecords ProductionRecord[]
+
+  @@map("warehouses")
+}
+
+enum WarehouseType {
+  MANUFACTURING
+  STORAGE
+  DISPATCH
+}
+
+// ==========================================
+// MASTER DATA — PACKAGING OPTIONS
+// ==========================================
+
+model PackagingOption {
+  id            String  @id @default(cuid())
+  name          String
+  type          String  // bottle, tube, jar, pouch, box, cap, label, carton
+  material      String?
+  volumeMl      Float?
+  weightG       Float?
+  costPerUnit   Float   @default(0)
+  moq           Int     @default(1)
+  leadTimeDays  Int     @default(7)
+  isActive      Boolean @default(true)
+
+  vendorId      String?
+  vendor        Vendor? @relation(fields: [vendorId], references: [id])
+
+  productPackaging ProductPackaging[]
+
+  @@map("packaging_options")
+}
+
+model ProductPackaging {
+  id              String          @id @default(cuid())
+  productId       String
+  product         Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  packagingId     String
+  packaging       PackagingOption @relation(fields: [packagingId], references: [id])
+  quantityPerUnit Int             @default(1)
+
+  @@unique([productId, packagingId])
+  @@map("product_packaging")
+}
+
+// ==========================================
+// MASTER DATA — PRICING
+// ==========================================
+
+model PriceList {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  type      PriceListType
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  items     PriceListItem[]
+  customers Customer[]
+
+  @@map("price_lists")
+}
+
+enum PriceListType {
+  RETAIL
+  WHOLESALE
+  DISTRIBUTOR
+  CUSTOM
+}
+
+model PriceListItem {
+  id          String    @id @default(cuid())
+  priceListId String
+  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  customRate  Float
+
+  @@unique([priceListId, productId])
+  @@map("price_list_items")
+}
+
+model DiscountRule {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // percentage, fixed
+  value       Float
+  minQty      Int      @default(1)
+  maxQty      Int?
+  productId   String?
+  categoryId  String?
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean  @default(true)
+
+  @@map("discount_rules")
+}
+
+// ==========================================
+// INVENTORY
+// ==========================================
+
+model Inventory {
+  id                String    @id @default(cuid())
+  productId         String
+  product           Product   @relation(fields: [productId], references: [id])
+  warehouseId       String
+  warehouse         Warehouse @relation(fields: [warehouseId], references: [id])
+  batchNumber       String?
+  quantityOnHand    Int       @default(0)
+  quantityCommitted Int       @default(0)
+  quantityIncoming  Int       @default(0)
+  manufacturingDate DateTime?
+  expiryDate        DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([productId, warehouseId, batchNumber])
+  @@map("inventory")
+}
+
+model InventoryMovement {
+  id            String       @id @default(cuid())
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id])
+  warehouseId   String
+  warehouse     Warehouse    @relation(fields: [warehouseId], references: [id])
+  movementType  MovementType
+  quantity      Int
+  batchNumber   String?
+  referenceType String?      // ORDER, GRN, PRODUCTION, MANUAL, ADJUSTMENT
+  referenceId   String?
+  beforeQty     Int
+  afterQty      Int
+  notes         String?
+  createdAt     DateTime     @default(now())
+  createdById   String?
+
+  @@map("inventory_movements")
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  TRANSFER
+}
+
+// ==========================================
+// SALES ORDERS
+// ==========================================
+
+model SalesOrder {
+  id                  String          @id @default(cuid())
+  orderNumber         String          @unique
+  orderDate           DateTime        @default(now())
+  expectedDeliveryDate DateTime?
+  status              OrderStatus     @default(ORDER_RECEIVED)
+  priority            OrderPriority   @default(NORMAL)
+
+  // Customer
+  customerId          String
+  customer            Customer        @relation(fields: [customerId], references: [id])
+  shippingAddressId   String?
+  shippingAddress     ShippingAddress? @relation(fields: [shippingAddressId], references: [id])
+
+  // Warehouse
+  warehouseId         String?
+  warehouse           Warehouse?      @relation(fields: [warehouseId], references: [id])
+
+  // Financials
+  subtotal            Float           @default(0)
+  discountAmount      Float           @default(0)
+  taxAmount           Float           @default(0)
+  shippingCharge      Float           @default(0)
+  grandTotal          Float           @default(0)
+  paymentTermsDays    Int             @default(0)
+  paymentMethod       String?
+  currency            String          @default("INR")
+
+  // Notes
+  internalNotes       String?
+  customerNotes       String?
+
+  // AI predictions
+  aiDeliveryDate      DateTime?
+  aiConfidence        String?         // HIGH, MEDIUM, LOW
+
+  // Tracking
+  createdById         String?
+  createdBy           User?           @relation(fields: [createdById], references: [id])
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  // Zoho
+  zohoSalesOrderId    String?
+
+  // Relations
+  items               SalesOrderItem[]
+  statusLog           OrderStatusLog[]
+  productionPlans     ProductionPlan[]
+  shipments           Shipment[]
+  invoices            Invoice[]
+
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id              String     @id @default(cuid())
+  salesOrderId    String
+  salesOrder      SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product    @relation(fields: [productId], references: [id])
+  quantity        Int
+  unitPrice       Float
+  discountPercent Float      @default(0)
+  discountAmount  Float      @default(0)
+  taxConfigId     String?
+  taxConfig       TaxConfig? @relation(fields: [taxConfigId], references: [id])
+  taxAmount       Float      @default(0)
+  lineTotal       Float      @default(0)
+  notes           String?
+
+  @@map("sales_order_items")
+}
+
+enum OrderStatus {
+  ORDER_RECEIVED
+  PRODUCTION_PLANNING
+  SOURCING_IN_PROGRESS
+  MATERIALS_RECEIVED
+  MANUFACTURING
+  QC_IN_PROGRESS
+  QC_APPROVED
+  QC_HOLD
+  QC_REJECTED
+  READY_TO_PACK
+  PACKING
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  INVOICED
+  PAYMENT_RECEIVED
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+  RETURNED
+}
+
+enum OrderPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model OrderStatusLog {
+  id           String      @id @default(cuid())
+  salesOrderId String
+  salesOrder   SalesOrder  @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  fromStatus   OrderStatus?
+  toStatus     OrderStatus
+  notes        String?
+  changedById  String?
+  createdAt    DateTime    @default(now())
+
+  @@map("order_status_log")
+}
+
+// ==========================================
+// PRODUCTION
+// ==========================================
+
+model ProductionPlan {
+  id              String      @id @default(cuid())
+  planNumber      String      @unique
+  salesOrderId    String
+  salesOrder      SalesOrder  @relation(fields: [salesOrderId], references: [id])
+  status          ProdPlanStatus @default(DRAFT)
+  plannedDate     DateTime?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  batches         ProductionRecord[]
+  bomRequirements BOMRequirement[]
+
+  @@map("production_plans")
+}
+
+enum ProdPlanStatus {
+  DRAFT
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model BOMRequirement {
+  id               String         @id @default(cuid())
+  productionPlanId String
+  productionPlan   ProductionPlan @relation(fields: [productionPlanId], references: [id], onDelete: Cascade)
+  materialId       String
+  materialType     ItemType
+  requiredQty      Float
+  availableQty     Float          @default(0)
+  shortfallQty     Float          @default(0)
+  status           String         @default("PENDING") // PENDING, AVAILABLE, ORDERED
+
+  @@map("bom_requirements")
+}
+
+model ProductionRecord {
+  id               String          @id @default(cuid())
+  batchNumber      String          @unique
+  productId        String
+  product          Product         @relation(fields: [productId], references: [id])
+  productionPlanId String?
+  productionPlan   ProductionPlan? @relation(fields: [productionPlanId], references: [id])
+  warehouseId      String
+  warehouse        Warehouse       @relation(fields: [warehouseId], references: [id])
+  plannedQty       Int
+  actualQty        Int             @default(0)
+  status           ProductionStatus @default(PLANNED)
+  manufacturingDate DateTime?
+  completionDate   DateTime?
+  yieldPercentage  Float?
+  notes            String?
+  createdById      String?
+  createdBy        User?           @relation(fields: [createdById], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  qcReports        QCReport[]
+  rmConsumption    RMConsumption[]
+
+  @@map("production_records")
+}
+
+enum ProductionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+}
+
+model RMConsumption {
+  id                 String           @id @default(cuid())
+  productionRecordId String
+  productionRecord   ProductionRecord @relation(fields: [productionRecordId], references: [id], onDelete: Cascade)
+  materialId         String
+  materialType       ItemType
+  plannedQty         Float
+  actualQty          Float            @default(0)
+  batchNumber        String?
+
+  @@map("rm_consumption")
+}
+
+// ==========================================
+// PROCUREMENT (PO & GRN)
+// ==========================================
+
+model PurchaseOrder {
+  id                  String       @id @default(cuid())
+  poNumber            String       @unique
+  vendorId            String
+  vendor              Vendor       @relation(fields: [vendorId], references: [id])
+  warehouseId         String
+  warehouse           Warehouse    @relation(fields: [warehouseId], references: [id])
+  status              POStatus     @default(DRAFT)
+  orderDate           DateTime     @default(now())
+  expectedDeliveryDate DateTime?
+  subtotal            Float        @default(0)
+  taxAmount           Float        @default(0)
+  grandTotal          Float        @default(0)
+  paymentTermsDays    Int          @default(30)
+  notes               String?
+  createdById         String?
+  createdBy           User?        @relation(fields: [createdById], references: [id])
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  // Zoho
+  zohoPOId            String?
+  zohoBillId          String?
+
+  items               PurchaseOrderItem[]
+  grns                GRN[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  quantity        Int
+  rate            Float
+  taxAmount       Float         @default(0)
+  lineTotal       Float         @default(0)
+  receivedQty     Int           @default(0)
+
+  @@map("purchase_order_items")
+}
+
+enum POStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+  CANCELLED
+}
+
+model GRN {
+  id              String        @id @default(cuid())
+  grnNumber       String        @unique
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  vendorId        String
+  vendor          Vendor        @relation(fields: [vendorId], references: [id])
+  receivedDate    DateTime      @default(now())
+  status          String        @default("PENDING") // PENDING, INSPECTED, ACCEPTED, REJECTED
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  items           GRNItem[]
+
+  @@map("grns")
+}
+
+model GRNItem {
+  id          String @id @default(cuid())
+  grnId       String
+  grn         GRN    @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  productId   String
+  quantity    Int
+  batchNumber String?
+  expiryDate  DateTime?
+  accepted    Boolean @default(true)
+  remarks     String?
+
+  @@map("grn_items")
+}
+
+// ==========================================
+// QC / QA
+// ==========================================
+
+model QCReport {
+  id                 String           @id @default(cuid())
+  reportNumber       String           @unique
+  productionRecordId String
+  productionRecord   ProductionRecord @relation(fields: [productionRecordId], references: [id])
+  productId          String
+  product            Product          @relation(fields: [productId], references: [id])
+  status             QCStatus         @default(PENDING)
+  testDate           DateTime         @default(now())
+  testResults        Json?
+  coaGenerated       Boolean          @default(false)
+  coaUrl             String?
+  remarks            String?
+  inspectorId        String?
+  inspector          User?            @relation(fields: [inspectorId], references: [id])
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@map("qc_reports")
+}
+
+enum QCStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  ON_HOLD
+  REJECTED
+}
+
+// ==========================================
+// SHIPPING & DISPATCH
+// ==========================================
+
+model Shipment {
+  id                String      @id @default(cuid())
+  salesOrderId      String
+  salesOrder        SalesOrder  @relation(fields: [salesOrderId], references: [id])
+  shipmentNumber    String      @unique
+  courierName       String?
+  awbNumber         String?
+  trackingUrl       String?
+  shipDate          DateTime?
+  expectedDelivery  DateTime?
+  actualDelivery    DateTime?
+  weightKg          Float?
+  packageCount      Int         @default(1)
+  status            ShipmentStatus @default(PENDING)
+  shippingCharge    Float       @default(0)
+  podUrl            String?
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Shiprocket
+  shiprocketOrderId String?
+  shiprocketShipmentId String?
+
+  @@map("shipments")
+}
+
+enum ShipmentStatus {
+  PENDING
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+// ==========================================
+// INVOICING & PAYMENTS
+// ==========================================
+
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  salesOrderId    String
+  salesOrder      SalesOrder    @relation(fields: [salesOrderId], references: [id])
+  customerId      String
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  invoiceDate     DateTime      @default(now())
+  dueDate         DateTime
+  subtotal        Float         @default(0)
+  discountAmount  Float         @default(0)
+  taxAmount       Float         @default(0)
+  grandTotal      Float         @default(0)
+  paidAmount      Float         @default(0)
+  balanceDue      Float         @default(0)
+  status          InvoiceStatus @default(DRAFT)
+  pdfUrl          String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Zoho
+  zohoInvoiceId   String?
+
+  items           InvoiceItem[]
+  payments        Payment[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String    @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId   String
+  productName String
+  sku         String?
+  hsnCode     String?
+  quantity    Int
+  unitPrice   Float
+  discount    Float     @default(0)
+  taxConfigId String?
+  taxConfig   TaxConfig? @relation(fields: [taxConfigId], references: [id])
+  cgst        Float     @default(0)
+  sgst        Float     @default(0)
+  igst        Float     @default(0)
+  lineTotal   Float     @default(0)
+
+  @@map("invoice_items")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  VOID
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  paymentNumber   String        @unique
+  invoiceId       String
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id])
+  customerId      String
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  amount          Float
+  paymentDate     DateTime      @default(now())
+  paymentMethod   PaymentMethod
+  referenceNumber String?
+  razorpayPaymentId String?
+  razorpayOrderId   String?
+  status          PaymentStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  // Zoho
+  zohoPaymentId   String?
+
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CHEQUE
+  RAZORPAY
+  CREDIT_NOTE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ==========================================
+// ZOHO SYNC LOG
+// ==========================================
+
+model ZohoSyncLog {
+  id           String   @id @default(cuid())
+  entityType   String   // CUSTOMER, VENDOR, PRODUCT, INVOICE, PAYMENT, BILL, PO
+  entityId     String
+  zohoId       String?
+  action       String   // CREATE, UPDATE, DELETE
+  status       String   // SUCCESS, FAILED, PENDING, RETRY
+  request      Json?
+  response     Json?
+  errorMessage String?
+  retryCount   Int      @default(0)
+  nextRetryAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@map("zoho_sync_log")
+}
+
+// ==========================================
+// NOTIFICATION LOG
+// ==========================================
+
+model Notification {
+  id          String   @id @default(cuid())
+  type        String   // EMAIL, SMS, WHATSAPP, IN_APP
+  channel     String   // sendgrid, smsstriker, wati, internal
+  recipientId String?
+  recipientEmail String?
+  recipientPhone String?
+  subject     String?
+  message     String
+  status      String   @default("PENDING") // PENDING, SENT, FAILED
+  referenceType String? // ORDER, INVOICE, SHIPMENT
+  referenceId String?
+  sentAt      DateTime?
+  errorMessage String?
+  createdAt   DateTime @default(now())
+
+  @@index([referenceType, referenceId])
+  @@map("notifications")
+}
+
+// ==========================================
+// AUDIT LOG
+// ==========================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, STATUS_CHANGE
+  entityType  String
+  entityId    String
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+// ==========================================
+// SETTINGS / CONFIG
+// ==========================================
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  group String @default("general")
+
+  @@map("settings")
+}
+
+model NumberSequence {
+  id       String @id @default(cuid())
+  prefix   String @unique // SO, PO, INV, GRN, BATCH, SHP, QC, PP
+  lastNum  Int    @default(0)
+  padLength Int   @default(4)
+
+  @@map("number_sequences")
+}
