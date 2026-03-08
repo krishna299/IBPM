@@ -46,14 +46,15 @@ interface ApiResponse {
 }
 
 interface CustomerFormData {
+  customerType: 'B2B' | 'B2C' | 'DISTRIBUTOR';
   contactName: string;
   companyName: string;
   email: string;
   phone: string;
-  alternatePhone: string;
+  altPhone: string;
   gstNumber: string;
   panNumber: string;
-  billingAddress: string;
+  addressLine1: string;
   city: string;
   state: string;
   pincode: string;
@@ -106,14 +107,15 @@ function CustomerFormModal({
   onSuccess: () => void;
 }) {
   const [formData, setFormData] = useState<CustomerFormData>({
+    customerType: 'B2B',
     contactName: '',
     companyName: '',
     email: '',
     phone: '',
-    alternatePhone: '',
+    altPhone: '',
     gstNumber: '',
     panNumber: '',
-    billingAddress: '',
+    addressLine1: '',
     city: '',
     state: '',
     pincode: '',
@@ -165,8 +167,22 @@ function CustomerFormModal({
 
     try {
       const payload = {
-        ...formData,
-        creditLimit: formData.creditLimit ? parseInt(String(formData.creditLimit)) : null,
+        customerType: formData.customerType,
+        contactName: formData.contactName,
+        companyName: formData.companyName || undefined,
+        email: formData.email,
+        phone: formData.phone,
+        altPhone: formData.altPhone || undefined,
+        gstNumber: formData.gstNumber || undefined,
+        panNumber: formData.panNumber || undefined,
+        billingAddress: {
+          line1: formData.addressLine1,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          country: formData.country || 'India',
+        },
+        creditLimit: formData.creditLimit ? parseFloat(String(formData.creditLimit)) : 0,
         paymentTermsDays: parseInt(String(formData.paymentTermsDays)),
       };
 
@@ -185,14 +201,15 @@ function CustomerFormModal({
       }
 
       setFormData({
+        customerType: 'B2B',
         contactName: '',
         companyName: '',
         email: '',
         phone: '',
-        alternatePhone: '',
+        altPhone: '',
         gstNumber: '',
         panNumber: '',
-        billingAddress: '',
+        addressLine1: '',
         city: '',
         state: '',
         pincode: '',
@@ -227,10 +244,41 @@ function CustomerFormModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {/* Name */}
+            {/* Customer Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer Name *
+                Customer Type *
+              </label>
+              <select
+                name="customerType"
+                value={formData.customerType}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="B2B">B2B</option>
+                <option value="B2C">B2C</option>
+                <option value="DISTRIBUTOR">Distributor</option>
+              </select>
+            </div>
+
+            {/* Company Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company Name
+              </label>
+              <Input
+                type="text"
+                name="companyName"
+                value={formData.companyName}
+                onChange={handleInputChange}
+                placeholder="Company name (optional)"
+              />
+            </div>
+
+            {/* Contact Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Contact Name *
               </label>
               <Input
                 type="text"
@@ -288,8 +336,8 @@ function CustomerFormModal({
               </label>
               <Input
                 type="tel"
-                name="alternatePhone"
-                value={formData.alternatePhone}
+                name="altPhone"
+                value={formData.altPhone}
                 onChange={handleInputChange}
                 placeholder="Alternate phone (optional)"
               />
@@ -415,18 +463,17 @@ function CustomerFormModal({
             </div>
           </div>
 
-          {/* Billing Address */}
+          {/* Address Line 1 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Billing Address
+              Address Line 1
             </label>
-            <textarea
-              name="billingAddress"
-              value={formData.billingAddress}
+            <Input
+              type="text"
+              name="addressLine1"
+              value={formData.addressLine1}
               onChange={handleInputChange}
-              placeholder="Enter billing address"
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Street address, building, etc."
             />
           </div>
 

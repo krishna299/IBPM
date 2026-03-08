@@ -10,30 +10,23 @@ import {
   Eye,
   Edit,
   MoreHorizontal,
-  Package,
-  Paintbrush,
   X,
   Loader,
 } from 'lucide-react';
 
 interface Vendor {
   id: string;
-  name: string;
+  vendorType: string;
+  companyName: string;
+  contactName: string;
   email: string;
   phone: string;
-  gstNumber: string;
-  panNumber?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  country?: string;
+  gstNumber?: string | null;
+  panNumber?: string | null;
+  address?: any;
+  leadTimeDays?: number;
   paymentTermsDays?: number;
-  bankName?: string;
-  bankAccountNumber?: string;
-  bankIfscCode?: string;
-  suppliesRawMaterials: boolean;
-  suppliesPackaging: boolean;
+  rating?: number;
   isActive: boolean;
   _count?: {
     purchaseOrders: number;
@@ -41,22 +34,21 @@ interface Vendor {
 }
 
 interface VendorFormData {
-  name: string;
+  vendorType: 'RAW_MATERIAL' | 'PACKAGING' | 'LOGISTICS' | 'OTHER';
+  companyName: string;
+  contactName: string;
   email: string;
   phone: string;
   gstNumber: string;
   panNumber: string;
-  address: string;
+  addressLine1: string;
   city: string;
   state: string;
   pincode: string;
   country: string;
-  paymentTermsDays: number;
-  bankName: string;
-  bankAccountNumber: string;
-  bankIfscCode: string;
-  suppliesRawMaterials: boolean;
-  suppliesPackaging: boolean;
+  leadTimeDays: number | string;
+  paymentTermsDays: number | string;
+  rating: number | string;
 }
 
 const INDIAN_STATES = [
@@ -98,22 +90,21 @@ const INDIAN_STATES = [
 ];
 
 const initialFormData: VendorFormData = {
-  name: '',
+  vendorType: 'RAW_MATERIAL',
+  companyName: '',
+  contactName: '',
   email: '',
   phone: '',
   gstNumber: '',
   panNumber: '',
-  address: '',
+  addressLine1: '',
   city: '',
   state: '',
   pincode: '',
   country: 'India',
+  leadTimeDays: 7,
   paymentTermsDays: 30,
-  bankName: '',
-  bankAccountNumber: '',
-  bankIfscCode: '',
-  suppliesRawMaterials: true,
-  suppliesPackaging: false,
+  rating: 3,
 };
 
 export default function VendorsPage() {
@@ -142,8 +133,8 @@ export default function VendorsPage() {
 
       const data = await response.json();
       setVendors(data.data || []);
-      setTotal(data.total || 0);
-      setTotalPages(data.totalPages || 1);
+      setTotal(data.pagination?.total || 0);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (error) {
       console.error('Error fetching vendors:', error);
       setVendors([]);
@@ -164,19 +155,10 @@ export default function VendorsPage() {
   const handleFormInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === 'number' ? (value ? parseInt(value) : 0) : value,
-    }));
-  };
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: checked,
+      [name]: value,
     }));
   };
 
@@ -184,22 +166,42 @@ export default function VendorsPage() {
     e.preventDefault();
     setFormError('');
 
-    if (!formData.name || !formData.phone) {
-      setFormError('Name and Phone are required');
+    if (!formData.companyName || !formData.contactName || !formData.phone) {
+      setFormError('Company name, contact name and phone are required');
       return;
     }
 
     try {
       setFormLoading(true);
+      const payload = {
+        vendorType: formData.vendorType,
+        companyName: formData.companyName,
+        contactName: formData.contactName,
+        email: formData.email,
+        phone: formData.phone,
+        gstNumber: formData.gstNumber || undefined,
+        panNumber: formData.panNumber || undefined,
+        address: {
+          line1: formData.addressLine1,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          country: formData.country || 'India',
+        },
+        leadTimeDays: parseInt(String(formData.leadTimeDays)) || 7,
+        paymentTermsDays: parseInt(String(formData.paymentTermsDays)) || 30,
+        rating: parseFloat(String(formData.rating)) || 3,
+      };
+
       const response = await fetch('/api/masters/vendors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to create vendor');
+        throw new Error(error.message || error.error || 'Failed to create vendor');
       }
 
       setShowCreateModal(false);
@@ -285,22 +287,19 @@ export default function VendorsPage() {
                 <thead className="border-b border-gray-200 bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Name
+                      Company
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Email
+                      Contact
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                       Phone
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      GST Number
+                      Type
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                       Location
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Supplies
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                       PO Count
@@ -317,41 +316,23 @@ export default function VendorsPage() {
                   {vendors.map((vendor) => (
                     <tr key={vendor.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {vendor.name}
+                        {vendor.companyName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {vendor.email || '-'}
+                        {vendor.contactName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {vendor.phone}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {vendor.gstNumber || '-'}
+                        <span className="inline-flex rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
+                          {vendor.vendorType}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {vendor.city && vendor.state
-                          ? `${vendor.city}, ${vendor.state}`
-                          : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex gap-2">
-                          {vendor.suppliesRawMaterials && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                              <Package className="h-3 w-3" />
-                              RM
-                            </span>
-                          )}
-                          {vendor.suppliesPackaging && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-                              <Paintbrush className="h-3 w-3" />
-                              PM
-                            </span>
-                          )}
-                          {!vendor.suppliesRawMaterials &&
-                            !vendor.suppliesPackaging && (
-                              <span className="text-xs text-gray-500">-</span>
-                            )}
-                        </div>
+                        {vendor.address?.city && vendor.address?.state
+                          ? `${vendor.address.city}, ${vendor.address.state}`
+                          : vendor.address?.city || vendor.address?.state || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
                         {vendor._count?.purchaseOrders || 0}
@@ -404,26 +385,6 @@ export default function VendorsPage() {
                 <ChevronLeft className="h-4 w-4" />
                 Previous
               </button>
-              <div className="flex items-center gap-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .slice(
-                    Math.max(0, page - 2),
-                    Math.min(totalPages, page + 1)
-                  )
-                  .map((pageNum) => (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                        pageNum === page
-                          ? 'bg-purple-600 text-white'
-                          : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  ))}
-              </div>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
@@ -440,7 +401,7 @@ export default function VendorsPage() {
       {/* Create Vendor Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="w-full max-w-2xl rounded-lg bg-white shadow-lg">
+          <div className="w-full max-w-2xl rounded-lg bg-white shadow-lg max-h-[90vh] overflow-y-auto">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Add New Vendor</h2>
               <button
@@ -459,17 +420,51 @@ export default function VendorsPage() {
               )}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {/* Name */}
+                {/* Vendor Type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Vendor Name *
+                    Vendor Type *
+                  </label>
+                  <select
+                    name="vendorType"
+                    value={formData.vendorType}
+                    onChange={handleFormInputChange}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <option value="RAW_MATERIAL">Raw Material</option>
+                    <option value="PACKAGING">Packaging</option>
+                    <option value="LOGISTICS">Logistics</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+
+                {/* Company Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Company Name *
                   </label>
                   <input
                     type="text"
-                    name="name"
-                    value={formData.name}
+                    name="companyName"
+                    value={formData.companyName}
                     onChange={handleFormInputChange}
-                    placeholder="Enter vendor name"
+                    placeholder="Enter company name"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+
+                {/* Contact Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="contactName"
+                    value={formData.contactName}
+                    onChange={handleFormInputChange}
+                    placeholder="Enter contact person name"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                     required
                   />
@@ -536,17 +531,17 @@ export default function VendorsPage() {
                   />
                 </div>
 
-                {/* Pincode */}
-                <div>
+                {/* Address Line 1 */}
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Pincode
+                    Address Line 1
                   </label>
                   <input
                     type="text"
-                    name="pincode"
-                    value={formData.pincode}
+                    name="addressLine1"
+                    value={formData.addressLine1}
                     onChange={handleFormInputChange}
-                    placeholder="400001"
+                    placeholder="Street address, building, etc."
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                   />
                 </div>
@@ -586,6 +581,21 @@ export default function VendorsPage() {
                   </select>
                 </div>
 
+                {/* Pincode */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pincode
+                  </label>
+                  <input
+                    type="text"
+                    name="pincode"
+                    value={formData.pincode}
+                    onChange={handleFormInputChange}
+                    placeholder="400001"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
                 {/* Country */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -601,6 +611,22 @@ export default function VendorsPage() {
                   />
                 </div>
 
+                {/* Lead Time Days */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Lead Time (Days)
+                  </label>
+                  <input
+                    type="number"
+                    name="leadTimeDays"
+                    value={formData.leadTimeDays}
+                    onChange={handleFormInputChange}
+                    placeholder="7"
+                    min="0"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
                 {/* Payment Terms */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -612,104 +638,28 @@ export default function VendorsPage() {
                     value={formData.paymentTermsDays}
                     onChange={handleFormInputChange}
                     placeholder="30"
+                    min="0"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                   />
                 </div>
-              </div>
 
-              {/* Address */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Address
-                </label>
-                <textarea
-                  name="address"
-                  value={formData.address}
-                  onChange={handleFormInputChange}
-                  placeholder="Enter full address"
-                  rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
-              </div>
-
-              {/* Bank Details */}
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                  Bank Details
-                </h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Bank Name
-                    </label>
-                    <input
-                      type="text"
-                      name="bankName"
-                      value={formData.bankName}
-                      onChange={handleFormInputChange}
-                      placeholder="Bank name"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Account Number
-                    </label>
-                    <input
-                      type="text"
-                      name="bankAccountNumber"
-                      value={formData.bankAccountNumber}
-                      onChange={handleFormInputChange}
-                      placeholder="Account number"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      IFSC Code
-                    </label>
-                    <input
-                      type="text"
-                      name="bankIfscCode"
-                      value={formData.bankIfscCode}
-                      onChange={handleFormInputChange}
-                      placeholder="BANKAA0001"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Supplies */}
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                  Supplies
-                </h3>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      name="suppliesRawMaterials"
-                      checked={formData.suppliesRawMaterials}
-                      onChange={handleCheckboxChange}
-                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Supplies Raw Materials
-                    </span>
+                {/* Rating */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rating (1-5)
                   </label>
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      name="suppliesPackaging"
-                      checked={formData.suppliesPackaging}
-                      onChange={handleCheckboxChange}
-                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Supplies Packaging Materials
-                    </span>
-                  </label>
+                  <select
+                    name="rating"
+                    value={formData.rating}
+                    onChange={handleFormInputChange}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <option value="1">1 - Poor</option>
+                    <option value="2">2 - Below Average</option>
+                    <option value="3">3 - Average</option>
+                    <option value="4">4 - Good</option>
+                    <option value="5">5 - Excellent</option>
+                  </select>
                 </div>
               </div>
 
