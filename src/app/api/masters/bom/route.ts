@@ -25,16 +25,16 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
     if (productId) {
-      where.productId = productId;
+      where.parentId = productId;
     }
 
     const bomItems = await prisma.bOMItem.findMany({
       where,
       include: {
-        product: { select: { id: true, name: true, sku: true, itemType: true } },
-        rawMaterial: { select: { id: true, name: true, sku: true, itemType: true } },
+        parent: { select: { id: true, name: true, sku: true, itemType: true } },
+        child: { select: { id: true, name: true, sku: true, itemType: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { sortOrder: "asc" },
     });
 
     return NextResponse.json({ data: bomItems });
@@ -56,19 +56,19 @@ export async function POST(request: NextRequest) {
 
     // Verify product is FG type
     const product = await prisma.product.findUnique({ where: { id: validated.productId } });
-    if (!product || product.itemType !== "FINISHED_GOOD") {
+    if (!product || product.itemType !== "FG") {
       return NextResponse.json({ error: "Product must be a Finished Good (FG)" }, { status: 400 });
     }
 
     // Verify raw material is RM or PM type
     const rawMaterial = await prisma.product.findUnique({ where: { id: validated.rawMaterialId } });
-    if (!rawMaterial || !["RAW_MATERIAL", "PACKAGING_MATERIAL", "CONSUMABLE"].includes(rawMaterial.itemType)) {
+    if (!rawMaterial || !["RM", "PM", "CONSUMABLE"].includes(rawMaterial.itemType)) {
       return NextResponse.json({ error: "Material must be RM, PM, or Consumable" }, { status: 400 });
     }
 
     // Check duplicate entry
     const existing = await prisma.bOMItem.findFirst({
-      where: { productId: validated.productId, rawMaterialId: validated.rawMaterialId },
+      where: { parentId: validated.productId, childId: validated.rawMaterialId },
     });
     if (existing) {
       return NextResponse.json({ error: "This material is already in the BOM for this product" }, { status: 409 });
@@ -76,16 +76,16 @@ export async function POST(request: NextRequest) {
 
     const bomItem = await prisma.bOMItem.create({
       data: {
-        productId: validated.productId,
-        rawMaterialId: validated.rawMaterialId,
-        quantityRequired: validated.quantityRequired,
-        unitOfMeasure: validated.unitOfMeasure || null,
+        parentId: validated.productId,
+        childId: validated.rawMaterialId,
+        quantity: validated.quantityRequired,
+        unit: validated.unitOfMeasure || null,
         wastagePercent: validated.wastagePercent,
         notes: validated.notes || null,
       },
       include: {
-        product: { select: { id: true, name: true, sku: true } },
-        rawMaterial: { select: { id: true, name: true, sku: true } },
+        parent: { select: { id: true, name: true, sku: true } },
+        child: { select: { id: true, name: true, sku: true } },
       },
     });
 
@@ -93,10 +93,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "CREATE",
-        module: "BOM",
         entityId: bomItem.id,
         entityType: "BOMItem",
-        newData: bomItem as any,
+        newValue: { parentId: bomItem.parentId, childId: bomItem.childId } as any,
       },
     });
 

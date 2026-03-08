@@ -14,19 +14,17 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const status = searchParams.get("status") || "";
-    const salesOrderId = searchParams.get("salesOrderId") || "";
 
     const where: any = {};
     if (status) where.status = status;
-    if (salesOrderId) where.salesOrderId = salesOrderId;
 
     const [reports, total] = await Promise.all([
       prisma.qCReport.findMany({
         where,
         include: {
-          salesOrder: { select: { id: true, orderNumber: true } },
           product: { select: { id: true, name: true, sku: true } },
-          inspectedBy: { select: { id: true, name: true } },
+          inspector: { select: { id: true, name: true } },
+          productionRecord: { select: { id: true, batchNumber: true } },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -59,56 +57,25 @@ export async function POST(request: NextRequest) {
       const qcReport = await tx.qCReport.create({
         data: {
           reportNumber: qcNumber,
-          salesOrderId: validated.salesOrderId || null,
+          productionRecordId: validated.productionRecordId,
           productId: validated.productId,
-          batchNumber: validated.batchNumber || null,
-          inspectedQuantity: validated.inspectedQuantity,
-          passedQuantity: validated.passedQuantity,
-          failedQuantity: validated.failedQuantity,
-          status: validated.status as any,
+          status: validated.status,
           remarks: validated.remarks || null,
-          parameters: validated.parameters || null,
-          inspectedById: session.user.id,
+          testResults: validated.testResults ?? undefined,
+          inspectorId: session.user.id,
         },
         include: {
           product: { select: { id: true, name: true, sku: true } },
-          salesOrder: { select: { id: true, orderNumber: true } },
         },
       });
-
-      // If linked to sales order and QC approved/rejected, update order status
-      if (validated.salesOrderId) {
-        const order = await tx.salesOrder.findUnique({ where: { id: validated.salesOrderId } });
-        if (order && order.status === "QC_PENDING") {
-          const newStatus = validated.status === "APPROVED" ? "QC_APPROVED" :
-                           validated.status === "REJECTED" ? "QC_REJECTED" : order.status;
-
-          if (newStatus !== order.status) {
-            await tx.salesOrder.update({
-              where: { id: validated.salesOrderId },
-              data: { status: newStatus },
-            });
-            await tx.orderStatusLog.create({
-              data: {
-                salesOrderId: validated.salesOrderId,
-                fromStatus: order.status,
-                toStatus: newStatus,
-                changedById: session.user.id,
-                remarks: `QC Report: ${qcNumber} - ${validated.status}`,
-              },
-            });
-          }
-        }
-      }
 
       await tx.auditLog.create({
         data: {
           userId: session.user.id,
           action: "CREATE",
-          module: "QC",
           entityId: qcReport.id,
           entityType: "QCReport",
-          newData: { reportNumber: qcNumber, status: validated.status } as any,
+          newValue: { reportNumber: qcNumber, status: validated.status } as any,
         },
       });
 

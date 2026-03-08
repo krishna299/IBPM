@@ -23,25 +23,25 @@ export const salesOrderInputSchema = z.object({
 export const orderStatusUpdateSchema = z.object({
   status: z.enum([
     "ORDER_RECEIVED",
-    "ORDER_CONFIRMED",
-    "PRODUCTION_PLANNED",
-    "MATERIALS_SOURCED",
-    "IN_PRODUCTION",
-    "PRODUCTION_COMPLETE",
-    "QC_PENDING",
+    "PRODUCTION_PLANNING",
+    "SOURCING_IN_PROGRESS",
+    "MATERIALS_RECEIVED",
+    "MANUFACTURING",
+    "QC_IN_PROGRESS",
     "QC_APPROVED",
+    "QC_HOLD",
     "QC_REJECTED",
-    "PACKAGING",
-    "READY_TO_SHIP",
-    "SHIPPED",
+    "READY_TO_PACK",
+    "PACKING",
+    "DISPATCHED",
     "IN_TRANSIT",
     "DELIVERED",
     "INVOICED",
-    "PAYMENT_PENDING",
     "PAYMENT_RECEIVED",
     "COMPLETED",
-    "CANCELLED",
     "ON_HOLD",
+    "CANCELLED",
+    "RETURNED",
   ]),
   remarks: z.string().optional(),
 });
@@ -63,6 +63,7 @@ export const purchaseOrderItemSchema = z.object({
 
 export const purchaseOrderInputSchema = z.object({
   vendorId: z.string().min(1, "Vendor is required"),
+  warehouseId: z.string().min(1, "Warehouse is required"),
   items: z.array(purchaseOrderItemSchema).min(1, "At least one item is required"),
   notes: z.string().optional(),
   paymentTermsDays: z.number().min(0).default(30),
@@ -84,29 +85,27 @@ export const grnInputSchema = z.object({
 });
 
 export const qcReportSchema = z.object({
-  salesOrderId: z.string().optional(),
+  productionRecordId: z.string().min(1, "Production record is required"),
   productId: z.string().min(1, "Product is required"),
-  batchNumber: z.string().optional(),
-  inspectedQuantity: z.number().min(1),
-  passedQuantity: z.number().min(0),
-  failedQuantity: z.number().min(0).default(0),
   status: z.enum(["PENDING", "IN_PROGRESS", "APPROVED", "ON_HOLD", "REJECTED"]),
   remarks: z.string().optional(),
-  parameters: z.string().optional(), // JSON string of test parameters
+  testResults: z.record(z.any()).optional(),
 });
 
 export const shipmentSchema = z.object({
   salesOrderId: z.string().min(1, "Sales order is required"),
-  warehouseId: z.string().min(1, "Warehouse is required"),
-  trackingNumber: z.string().optional(),
-  courierPartner: z.string().optional(),
-  shippingMethod: z.string().optional(),
-  estimatedDelivery: z.string().optional(),
+  courierName: z.string().optional(),
+  awbNumber: z.string().optional(),
+  trackingUrl: z.string().optional(),
+  shipDate: z.string().optional(),
+  expectedDelivery: z.string().optional(),
+  weightKg: z.number().optional(),
   notes: z.string().optional(),
 });
 
 export const invoiceItemSchema = z.object({
   productId: z.string().min(1),
+  productName: z.string().optional(),
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
   discountPercent: z.number().min(0).max(100).default(0),
@@ -129,7 +128,7 @@ export const paymentInputSchema = z.object({
   customerId: z.string().min(1, "Customer is required"),
   amount: z.number().min(0.01, "Amount must be positive"),
   paymentDate: z.string().min(1, "Payment date is required"),
-  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "UPI", "CHEQUE", "RAZORPAY", "OTHER"]),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "UPI", "CHEQUE", "RAZORPAY", "CREDIT_NOTE"]),
   referenceNumber: z.string().optional(),
   notes: z.string().optional(),
 });

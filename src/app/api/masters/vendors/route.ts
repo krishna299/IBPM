@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
+        { companyName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
         { phone: { contains: search, mode: "insensitive" } },
         { gstNumber: { contains: search, mode: "insensitive" } },
@@ -86,22 +86,18 @@ export async function POST(request: NextRequest) {
 
     const vendor = await prisma.vendor.create({
       data: {
-        name: validated.name,
-        email: validated.email || null,
-        phone: validated.phone || null,
+        vendorType: validated.vendorType,
+        companyName: validated.companyName,
+        contactName: validated.contactName,
+        email: validated.email,
+        phone: validated.phone,
         gstNumber: validated.gstNumber || null,
         panNumber: validated.panNumber || null,
-        address: validated.address || null,
-        city: validated.city || null,
-        state: validated.state || null,
-        pincode: validated.pincode || null,
-        country: validated.country || "India",
-        paymentTermsDays: validated.paymentTermsDays || 30,
-        bankName: validated.bankName || null,
-        bankAccountNumber: validated.bankAccountNumber || null,
-        bankIfscCode: validated.bankIfscCode || null,
-        suppliesRawMaterials: validated.suppliesRawMaterials ?? true,
-        suppliesPackaging: validated.suppliesPackaging ?? false,
+        address: validated.address as any,
+        leadTimeDays: validated.leadTimeDays,
+        paymentTermsDays: validated.paymentTermsDays,
+        rating: validated.rating,
+        notes: validated.notes || null,
       },
     });
 
@@ -109,10 +105,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "CREATE",
-        module: "VENDOR",
         entityId: vendor.id,
         entityType: "Vendor",
-        newData: vendor as any,
+        newValue: vendor as any,
       },
     });
 

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
+        { contactName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
         { phone: { contains: search, mode: "insensitive" } },
         { gstNumber: { contains: search, mode: "insensitive" } },
@@ -87,19 +87,18 @@ export async function POST(request: NextRequest) {
 
     const customer = await prisma.customer.create({
       data: {
-        name: validated.name,
-        email: validated.email || null,
-        phone: validated.phone || null,
-        alternatePhone: validated.alternatePhone || null,
+        customerType: validated.customerType,
+        companyName: validated.companyName || null,
+        contactName: validated.contactName,
+        email: validated.email,
+        phone: validated.phone,
+        altPhone: validated.altPhone || null,
         gstNumber: validated.gstNumber || null,
         panNumber: validated.panNumber || null,
-        billingAddress: validated.billingAddress || null,
-        city: validated.city || null,
-        state: validated.state || null,
-        pincode: validated.pincode || null,
-        country: validated.country || "India",
-        creditLimit: validated.creditLimit || null,
-        paymentTermsDays: validated.paymentTermsDays || 30,
+        billingAddress: validated.billingAddress as any,
+        creditLimit: validated.creditLimit,
+        paymentTermsDays: validated.paymentTermsDays,
+        notes: validated.notes || null,
       },
     });
 
@@ -108,10 +107,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "CREATE",
-        module: "CUSTOMER",
         entityId: customer.id,
         entityType: "Customer",
-        newData: customer as any,
+        newValue: customer as any,
       },
     });
 

@@ -69,9 +69,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Category already exists at this level" }, { status: 409 });
     }
 
+    const slug = validated.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
     const category = await prisma.category.create({
       data: {
         name: validated.name,
+        slug,
         description: validated.description || null,
         parentId: validated.parentId || null,
       },
@@ -81,10 +84,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "CREATE",
-        module: "CATEGORY",
         entityId: category.id,
         entityType: "Category",
-        newData: category as any,
+        newValue: { name: category.name, slug } as any,
       },
     });
 

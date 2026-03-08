@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth-options";
 import prisma from "@/lib/db/prisma";
-import { generateNextNumber } from "@/lib/utils/number-sequence";
+//import { generateNumber } from "@/lib/utils/number-sequence";
+ 
+import { generateNumber } from "@/lib/utils/number-sequence";
+
 import { invoiceInputSchema } from "@/lib/validations/order";
 
 export async function GET(request: NextRequest) {
@@ -20,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { invoiceNumber: { contains: search, mode: "insensitive" } },
-        { customer: { name: { contains: search, mode: "insensitive" } } },
+        { customer: { contactName: { contains: search, mode: "insensitive" } } },
       ];
     }
     if (status) where.status = status;
@@ -29,11 +32,9 @@ export async function GET(request: NextRequest) {
       prisma.invoice.findMany({
         where,
         include: {
-          customer: { select: { id: true, name: true, email: true, gstNumber: true } },
+          customer: { select: { id: true, companyName: true, contactName: true, email: true, gstNumber: true } },
           salesOrder: { select: { id: true, orderNumber: true } },
-          items: {
-            include: { product: { select: { id: true, name: true, sku: true } } },
-          },
+          items: true, // remove the product include — InvoiceItem has no product relation
           payments: true,
         },
         orderBy: { createdAt: "desc" },
@@ -61,11 +62,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = invoiceInputSchema.parse(body);
 
-    const invoiceNumber = await generateNextNumber("INV");
+    const invoiceNumber = await generateNumber("INV");
 
     let subtotal = 0;
     let totalTax = 0;
-    const itemsData = [];
+    //const itemsData = [];
+    const itemsData: any[] = [];
 
     for (const item of validated.items) {
       const lineTotal = item.quantity * item.unitPrice;
@@ -80,7 +82,8 @@ export async function POST(request: NextRequest) {
       totalTax += itemTax;
 
       itemsData.push({
-        productId: item.productId,
+        productId: item.productId,        
+        productName: item.productName || "",   // ← add this
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discountPercent: item.discountPercent,
@@ -107,15 +110,21 @@ export async function POST(request: NextRequest) {
           dueDate: new Date(validated.dueDate),
           subtotal,
           taxAmount: totalTax,
-          totalAmount,
+          grandTotal: totalAmount,
           balanceDue: totalAmount,
           status: "DRAFT",
           notes: validated.notes || null,
           items: { create: itemsData },
         },
         include: {
-          customer: { select: { name: true } },
-          items: { include: { product: { select: { name: true, sku: true } } } },
+          //customer: { select: { name: true } },
+          customer: {
+            select: {
+              companyName: true,
+              contactName: true
+            }
+          },
+          items: true,
         },
       });
 
@@ -132,7 +141,7 @@ export async function POST(request: NextRequest) {
             fromStatus: "DELIVERED",
             toStatus: "INVOICED",
             changedById: session.user.id,
-            remarks: `Invoice created: ${invoiceNumber}`,
+            notes: `Invoice created: ${invoiceNumber}`,
           },
         });
       }
@@ -141,10 +150,9 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.user.id,
           action: "CREATE",
-          module: "INVOICE",
           entityId: inv.id,
           entityType: "Invoice",
-          newData: { invoiceNumber, totalAmount } as any,
+          newValue: { invoiceNumber, totalAmount } as any,
         },
       });
 

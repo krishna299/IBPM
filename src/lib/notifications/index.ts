@@ -59,6 +59,7 @@ async function logNotification(params: {
         recipientEmail: params.recipientEmail || null,
         recipientPhone: params.recipientPhone || null,
         subject: params.subject,
+        message: params.subject,
         status: params.status,
         errorMessage: params.errorMessage || null,
       },
@@ -103,7 +104,7 @@ export async function notifyOrderConfirmed(orderId: string): Promise<Notificatio
 
   // SMS
   if (channels.sms && order.customer.phone) {
-    const smsParams = orderConfirmationSMS(order.orderNumber, order.customer.name, order.totalAmount);
+    const smsParams = orderConfirmationSMS(order.orderNumber, order.customer.contactName, order.grandTotal);
     smsParams.to = order.customer.phone;
     const result = await sendSMS(smsParams);
     results.push({ channel: "sms", ...result });
@@ -121,8 +122,8 @@ export async function notifyOrderConfirmed(orderId: string): Promise<Notificatio
   if (channels.whatsapp && order.customer.phone) {
     const waParams = orderConfirmationWA(
       order.orderNumber,
-      order.customer.name,
-      `₹${order.totalAmount.toLocaleString("en-IN")}`
+      order.customer.contactName,
+      `₹${order.grandTotal.toLocaleString("en-IN")}`
     );
     waParams.to = order.customer.phone;
     const result = await sendWhatsApp(waParams);
@@ -165,7 +166,7 @@ export async function notifyOrderShipped(shipmentId: string): Promise<Notificati
   }
 
   if (channels.sms && customer.phone) {
-    const smsParams = shipmentSMS(order.orderNumber, shipment.trackingNumber || "N/A", shipment.courierPartner || "Courier");
+    const smsParams = shipmentSMS(order.orderNumber, shipment.awbNumber || "N/A", shipment.courierName || "Courier");
     smsParams.to = customer.phone;
     const result = await sendSMS(smsParams);
     results.push({ channel: "sms", ...result });
@@ -173,7 +174,7 @@ export async function notifyOrderShipped(shipmentId: string): Promise<Notificati
   }
 
   if (channels.whatsapp && customer.phone) {
-    const waParams = shipmentWA(order.orderNumber, shipment.trackingNumber || "N/A", shipment.courierPartner || "Courier", shipment.estimatedDelivery?.toLocaleDateString("en-IN") || "TBD");
+    const waParams = shipmentWA(order.orderNumber, shipment.awbNumber || "N/A", shipment.courierName || "Courier", shipment.expectedDelivery?.toLocaleDateString("en-IN") || "TBD");
     waParams.to = customer.phone;
     const result = await sendWhatsApp(waParams);
     results.push({ channel: "whatsapp", ...result });
@@ -204,7 +205,7 @@ export async function notifyInvoiceCreated(invoiceId: string): Promise<Notificat
   }
 
   if (channels.whatsapp && invoice.customer.phone) {
-    const waParams = invoiceWA(invoice.invoiceNumber, `₹${invoice.totalAmount.toLocaleString("en-IN")}`, invoice.dueDate.toLocaleDateString("en-IN"));
+    const waParams = invoiceWA(invoice.invoiceNumber, `₹${invoice.grandTotal.toLocaleString("en-IN")}`, invoice.dueDate.toLocaleDateString("en-IN"));
     waParams.to = invoice.customer.phone;
     const result = await sendWhatsApp(waParams);
     results.push({ channel: "whatsapp", ...result });

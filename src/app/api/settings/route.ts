@@ -64,10 +64,9 @@ export async function PUT(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "UPDATE",
-        module: "SETTINGS",
         entityId: "system",
         entityType: "Setting",
-        newData: settings as any,
+        newValue: settings as any,
       },
     });
 

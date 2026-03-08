@@ -20,14 +20,14 @@ export async function GET(
         productType: true,
         unit: true,
         taxConfig: true,
-        bomItems: {
-          include: { rawMaterial: { select: { id: true, name: true, sku: true, itemType: true } } },
+        bomParent: {
+          include: { child: { select: { id: true, name: true, sku: true, itemType: true } } },
         },
-        usedInProducts: {
-          include: { product: { select: { id: true, name: true, sku: true } } },
+        bomChild: {
+          include: { parent: { select: { id: true, name: true, sku: true } } },
         },
-        productPackaging: {
-          include: { packagingOption: true },
+        packagingOptions: {
+          include: { packaging: true },
         },
         inventory: {
           include: { warehouse: { select: { id: true, name: true, code: true } } },
@@ -82,11 +82,10 @@ export async function PUT(
       data: {
         userId: session.user.id,
         action: "UPDATE",
-        module: "PRODUCT",
         entityId: product.id,
         entityType: "Product",
-        previousData: existing as any,
-        newData: product as any,
+        oldValue: existing as any,
+        newValue: product as any,
       },
     });
 
@@ -117,11 +116,10 @@ export async function DELETE(
       data: {
         userId: session.user.id,
         action: "DELETE",
-        module: "PRODUCT",
         entityId: product.id,
         entityType: "Product",
-        previousData: { isActive: true } as any,
-        newData: { isActive: false } as any,
+        oldValue: { isActive: true } as any,
+        newValue: { isActive: false } as any,
       },
     });
 

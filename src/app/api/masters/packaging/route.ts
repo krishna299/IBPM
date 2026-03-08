@@ -41,10 +41,9 @@ export async function POST(request: NextRequest) {
     const packaging = await prisma.packagingOption.create({
       data: {
         name: validated.name,
-        description: validated.description || null,
-        materialType: validated.materialType || null,
-        size: validated.size || null,
-        costPerUnit: validated.costPerUnit || null,
+        type: validated.materialType || "other",
+        material: validated.materialType || null,
+        costPerUnit: validated.costPerUnit ?? undefined,
       },
     });
 
@@ -52,10 +51,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "CREATE",
-        module: "PACKAGING",
         entityId: packaging.id,
         entityType: "PackagingOption",
-        newData: packaging as any,
+        newValue: packaging as any,
       },
     });
 

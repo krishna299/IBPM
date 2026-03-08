@@ -6,11 +6,9 @@ import { z } from "zod";
 
 const taxConfigSchema = z.object({
   name: z.string().min(1, "Tax config name is required"),
-  hsnCode: z.string().optional(),
-  cgstPercent: z.number().min(0).max(100).default(0),
-  sgstPercent: z.number().min(0).max(100).default(0),
-  igstPercent: z.number().min(0).max(100).default(0),
-  cessPercent: z.number().min(0).max(100).default(0),
+  rate: z.number().min(0).max(100),
+  taxType: z.enum(["GST", "IGST", "EXEMPT"]).default("GST"),
+  hsnRange: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -46,11 +44,9 @@ export async function POST(request: NextRequest) {
     const taxConfig = await prisma.taxConfig.create({
       data: {
         name: validated.name,
-        hsnCode: validated.hsnCode || null,
-        cgstPercent: validated.cgstPercent,
-        sgstPercent: validated.sgstPercent,
-        igstPercent: validated.igstPercent,
-        cessPercent: validated.cessPercent,
+        rate: validated.rate,
+        taxType: validated.taxType,
+        hsnRange: validated.hsnRange || null,
       },
     });
 
@@ -58,10 +54,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "CREATE",
-        module: "TAX_CONFIG",
         entityId: taxConfig.id,
         entityType: "TaxConfig",
-        newData: taxConfig as any,
+        newValue: taxConfig as any,
       },
     });
 

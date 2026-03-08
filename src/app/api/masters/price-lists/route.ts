@@ -6,10 +6,7 @@ import { z } from "zod";
 
 const priceListSchema = z.object({
   name: z.string().min(1, "Price list name is required"),
-  description: z.string().optional(),
-  currency: z.string().default("INR"),
-  validFrom: z.string().optional(),
-  validTo: z.string().optional(),
+  type: z.enum(["RETAIL", "WHOLESALE", "DISTRIBUTOR", "CUSTOM"]).default("RETAIL"),
 });
 
 export async function GET() {
@@ -41,10 +38,7 @@ export async function POST(request: NextRequest) {
     const priceList = await prisma.priceList.create({
       data: {
         name: validated.name,
-        description: validated.description || null,
-        currency: validated.currency,
-        validFrom: validated.validFrom ? new Date(validated.validFrom) : null,
-        validTo: validated.validTo ? new Date(validated.validTo) : null,
+        type: validated.type,
       },
     });
 
@@ -52,10 +46,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "CREATE",
-        module: "PRICE_LIST",
         entityId: priceList.id,
         entityType: "PriceList",
-        newData: priceList as any,
+        newValue: priceList as any,
       },
     });
 

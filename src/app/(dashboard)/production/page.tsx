@@ -13,8 +13,8 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import Button from '@/components/ui/button';
-import Card from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import CreatePlanModal from '@/components/modals/CreatePlanModal';
 
 interface ProductionPlan {

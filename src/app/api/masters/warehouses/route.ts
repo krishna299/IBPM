@@ -85,13 +85,9 @@ export async function POST(request: NextRequest) {
       data: {
         name: validated.name,
         code: validated.code,
-        address: validated.address || null,
-        city: validated.city || null,
-        state: validated.state || null,
-        pincode: validated.pincode || null,
-        managerName: validated.managerName || null,
-        managerPhone: validated.managerPhone || null,
-        warehouseType: validated.warehouseType || "FINISHED_GOODS",
+        address: validated.address as any,
+        warehouseType: validated.warehouseType,
+        managerId: validated.managerId || null,
       },
     });
 
@@ -99,10 +95,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         action: "CREATE",
-        module: "WAREHOUSE",
         entityId: warehouse.id,
         entityType: "Warehouse",
-        newData: warehouse as any,
+        newValue: warehouse as any,
       },
     });
 

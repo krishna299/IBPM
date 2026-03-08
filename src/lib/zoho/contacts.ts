@@ -8,20 +8,21 @@ export async function pushCustomerToZoho(customerId: string) {
   const customer = await prisma.customer.findUnique({ where: { id: customerId } });
   if (!customer) throw new Error("Customer not found");
 
+  const billingAddr = customer.billingAddress as any;
   const zohoPayload = {
-    contact_name: customer.name,
+    contact_name: customer.companyName || customer.contactName,
     contact_type: "customer",
     email: customer.email || undefined,
     phone: customer.phone || undefined,
     gst_no: customer.gstNumber || undefined,
     pan_no: customer.panNumber || undefined,
-    billing_address: customer.billingAddress
+    billing_address: billingAddr
       ? {
-          address: customer.billingAddress,
-          city: customer.city || "",
-          state: customer.state || "",
-          zip: customer.pincode || "",
-          country: customer.country || "India",
+          address: billingAddr.address || billingAddr.street || "",
+          city: billingAddr.city || "",
+          state: billingAddr.state || "",
+          zip: billingAddr.pincode || billingAddr.zip || "",
+          country: billingAddr.country || "India",
         }
       : undefined,
     payment_terms: customer.paymentTermsDays || 30,
@@ -85,20 +86,21 @@ export async function pushVendorToZoho(vendorId: string) {
   const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
   if (!vendor) throw new Error("Vendor not found");
 
+  const vendorAddr = vendor.address as any;
   const zohoPayload = {
-    contact_name: vendor.name,
+    contact_name: vendor.companyName || vendor.contactName,
     contact_type: "vendor",
     email: vendor.email || undefined,
     phone: vendor.phone || undefined,
     gst_no: vendor.gstNumber || undefined,
     pan_no: vendor.panNumber || undefined,
-    billing_address: vendor.address
+    billing_address: vendorAddr
       ? {
-          address: vendor.address,
-          city: vendor.city || "",
-          state: vendor.state || "",
-          zip: vendor.pincode || "",
-          country: vendor.country || "India",
+          address: vendorAddr.address || vendorAddr.street || "",
+          city: vendorAddr.city || "",
+          state: vendorAddr.state || "",
+          zip: vendorAddr.pincode || vendorAddr.zip || "",
+          country: vendorAddr.country || "India",
         }
       : undefined,
     payment_terms: vendor.paymentTermsDays || 30,

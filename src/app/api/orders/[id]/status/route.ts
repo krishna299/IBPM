@@ -144,7 +144,7 @@ export async function PUT(
           fromStatus: order.status,
           toStatus: validated.status,
           changedById: session.user.id,
-          remarks: validated.remarks || null,
+          notes: validated.remarks || null,
         },
       });
 
@@ -152,11 +152,10 @@ export async function PUT(
         data: {
           userId: session.user.id,
           action: "STATUS_CHANGE",
-          module: "ORDER",
           entityId: params.id,
           entityType: "SalesOrder",
-          previousData: { status: order.status } as any,
-          newData: { status: validated.status } as any,
+          oldValue: { status: order.status } as any,
+          newValue: { status: validated.status } as any,
         },
       });
 

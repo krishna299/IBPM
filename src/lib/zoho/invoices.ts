@@ -9,9 +9,7 @@ export async function pushInvoiceToZoho(invoiceId: string) {
     where: { id: invoiceId },
     include: {
       customer: true,
-      items: {
-        include: { product: true },
-      },
+      items: true,
       salesOrder: true,
     },
   });
@@ -26,23 +24,17 @@ export async function pushInvoiceToZoho(invoiceId: string) {
     }
   }
 
-  // Ensure all products are synced
-  for (const item of invoice.items) {
-    if (!item.product.zohoItemId) {
-      const { pushProductToZoho } = await import("./items");
-      await pushProductToZoho(item.productId);
-    }
-  }
-
   // Refresh data after syncs
   const updatedInvoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
     include: {
       customer: true,
-      items: { include: { product: true } },
+      items: true,
+      salesOrder: true,
     },
   });
 
+  const billingAddr = updatedInvoice!.customer.billingAddress as any;
   const zohoPayload: any = {
     customer_id: updatedInvoice!.customer.zohoContactId,
     invoice_number: updatedInvoice!.invoiceNumber,
@@ -52,25 +44,24 @@ export async function pushInvoiceToZoho(invoiceId: string) {
     is_inclusive_tax: false,
     gst_treatment: updatedInvoice!.customer.gstNumber ? "business_gst" : "consumer",
     gst_no: updatedInvoice!.customer.gstNumber || "",
-    place_of_supply: updatedInvoice!.customer.state || "",
+    place_of_supply: billingAddr?.state || "",
     line_items: updatedInvoice!.items.map((item) => {
       const lineItem: any = {
-        item_id: item.product.zohoItemId || undefined,
-        name: item.product.name,
-        description: `SKU: ${item.product.sku}`,
+        name: item.productName,
+        description: `SKU: ${item.sku || ""}`,
         quantity: item.quantity,
         rate: item.unitPrice,
-        discount: item.discountPercent || 0,
-        hsn_or_sac: item.product.hsnCode || "",
+        discount: item.discount || 0,
+        hsn_or_sac: item.hsnCode || "",
       };
 
       // GST details
-      if (item.igstPercent > 0) {
+      if (item.igst > 0) {
         lineItem.gst_treatment_code = "out_of_state";
-        lineItem.tax_percentage = item.igstPercent;
-      } else if (item.cgstPercent > 0 || item.sgstPercent > 0) {
+        lineItem.tax_amount = item.igst;
+      } else if (item.cgst > 0 || item.sgst > 0) {
         lineItem.gst_treatment_code = "intra_state";
-        lineItem.tax_percentage = item.cgstPercent + item.sgstPercent;
+        lineItem.tax_amount = item.cgst + item.sgst;
       }
 
       return lineItem;

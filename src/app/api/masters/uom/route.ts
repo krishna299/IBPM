@@ -12,7 +12,6 @@ const uomSchema = z.object({
 export async function GET() {
   try {
     const uoms = await prisma.unitOfMeasure.findMany({
-      where: { isActive: true },
       include: { _count: { select: { products: true } } },
       orderBy: { name: "asc" },
     });

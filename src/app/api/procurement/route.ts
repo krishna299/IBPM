@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { poNumber: { contains: search, mode: "insensitive" } },
-        { vendor: { name: { contains: search, mode: "insensitive" } } },
+        { vendor: { companyName: { contains: search, mode: "insensitive" } } },
       ];
     }
     if (status) where.status = status;
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       prisma.purchaseOrder.findMany({
         where,
         include: {
-          vendor: { select: { id: true, name: true, email: true, phone: true } },
+          vendor: { select: { id: true, companyName: true, contactName: true, email: true, phone: true } },
           items: {
             include: { product: { select: { id: true, name: true, sku: true, itemType: true } } },
           },
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const poNumber = await generateNextNumber("PO");
 
     let totalAmount = 0;
-    const itemsData = [];
+    const itemsData: any[] = [];
     for (const item of validated.items) {
       const product = await prisma.product.findUnique({ where: { id: item.productId } });
       if (!product) return NextResponse.json({ error: `Product not found: ${item.productId}` }, { status: 404 });
@@ -79,10 +79,9 @@ export async function POST(request: NextRequest) {
       itemsData.push({
         productId: item.productId,
         quantity: item.quantity,
-        unitPrice: item.unitPrice,
+        rate: item.unitPrice,
         lineTotal,
-        receivedQuantity: 0,
-        expectedDeliveryDate: item.expectedDeliveryDate ? new Date(item.expectedDeliveryDate) : null,
+        receivedQty: 0,
       });
     }
 
@@ -91,15 +90,16 @@ export async function POST(request: NextRequest) {
         data: {
           poNumber,
           vendorId: validated.vendorId,
+          warehouseId: validated.warehouseId,
           status: "DRAFT",
-          totalAmount,
+          grandTotal: totalAmount,
           notes: validated.notes || null,
           paymentTermsDays: validated.paymentTermsDays,
           createdById: session.user.id,
           items: { create: itemsData },
         },
         include: {
-          vendor: { select: { name: true } },
+          vendor: { select: { companyName: true, contactName: true } },
           items: { include: { product: { select: { id: true, name: true, sku: true } } } },
         },
       });
@@ -108,10 +108,9 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.user.id,
           action: "CREATE",
-          module: "PROCUREMENT",
           entityId: purchaseOrder.id,
           entityType: "PurchaseOrder",
-          newData: { poNumber, vendorId: validated.vendorId, totalAmount } as any,
+          newValue: { poNumber, vendorId: validated.vendorId, totalAmount } as any,
         },
       });
 

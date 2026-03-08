@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth-options";
 import prisma from "@/lib/db/prisma";
 
+import { ItemType } from "@prisma/client";
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -28,9 +30,13 @@ export async function GET() {
     ] = await Promise.all([
       // Products
       prisma.product.count({ where: { isActive: true } }),
-      prisma.product.count({ where: { isActive: true, itemType: "FINISHED_GOOD" } }),
-      prisma.product.count({ where: { isActive: true, itemType: "RAW_MATERIAL" } }),
-      prisma.product.count({ where: { isActive: true, itemType: "PACKAGING_MATERIAL" } }),
+      //prisma.product.count({ where: { isActive: true, itemType: "FINISHED_GOOD" } }),
+      //prisma.product.count({ where: { isActive: true, itemType: "RAW_MATERIAL" } }),
+      //prisma.product.count({ where: { isActive: true, itemType: "PACKAGING_MATERIAL" } }),
+
+      prisma.product.count({ where: { isActive: true, itemType: "FINISHED_GOOD" as ItemType } }),
+      prisma.product.count({ where: { isActive: true, itemType: "RAW_MATERIAL" as ItemType } }),
+      prisma.product.count({ where: { isActive: true, itemType: "PACKAGING_MATERIAL" as ItemType } }),
 
       // Contacts
       prisma.customer.count({ where: { isActive: true } }),
@@ -41,7 +47,7 @@ export async function GET() {
       prisma.salesOrder.groupBy({
         by: ["status"],
         _count: { id: true },
-        _sum: { totalAmount: true },
+        _sum: { taxAmount: true },
       }),
 
       // Recent orders
@@ -49,26 +55,27 @@ export async function GET() {
         take: 5,
         orderBy: { createdAt: "desc" },
         include: {
-          customer: { select: { name: true } },
+          //customer: { select: { name: true } },
+          customer: { select: { companyName: true, contactName: true } },
         },
       }),
 
       // Finance
-      prisma.invoice.aggregate({ _sum: { totalAmount: true } }),
+      //prisma.invoice.aggregate({ _sum: { grandTotal: true } }),
+      prisma.invoice.aggregate({ _sum: { taxAmount: true } }),
       prisma.payment.aggregate({ _sum: { amount: true }, where: { status: "COMPLETED" } }),
 
       // Low stock (items with qty below reorder level)
-      prisma.$queryRaw`
+      prisma.$queryRaw<any[]>`
         SELECT p."name", p."sku", p."itemType", p."reorderLevel",
-               COALESCE(SUM(i."quantityOnHand"), 0) as "currentStock"
+              COALESCE(SUM(i."quantityOnHand"), 0) as "currentStock"
         FROM "Product" p
         LEFT JOIN "Inventory" i ON i."productId" = p."id"
         WHERE p."isActive" = true AND p."reorderLevel" > 0
         GROUP BY p."id", p."name", p."sku", p."itemType", p."reorderLevel"
         HAVING COALESCE(SUM(i."quantityOnHand"), 0) < p."reorderLevel"
         ORDER BY (COALESCE(SUM(i."quantityOnHand"), 0)::float / p."reorderLevel") ASC
-        LIMIT 10
-      ` as any[],
+        LIMIT 10 `,
 
       // Recent audit log
       prisma.auditLog.findMany({
@@ -115,8 +122,8 @@ export async function GET() {
       .filter((s) => s.status === "COMPLETED")
       .reduce((acc, s) => acc + s._count.id, 0);
 
-    const totalRevenue = ordersByStatus.reduce((acc, s) => acc + (s._sum.totalAmount || 0), 0);
-
+    //const totalRevenue = ordersByStatus.reduce((acc, s) => acc + (s._sum.totalAmount || 0), 0);
+    const totalRevenue = ordersByStatus.reduce((acc, s) => acc + (Number(s._sum.taxAmount) || 0), 0);
     return NextResponse.json({
       products: {
         total: totalProducts,
@@ -138,16 +145,19 @@ export async function GET() {
         byStatus: ordersByStatus,
       },
       finance: {
-        totalInvoiced: totalInvoiceAmount._sum.totalAmount || 0,
+        //totalInvoiced: totalInvoiceAmount._sum.totalAmount || 0,
+        totalInvoiced: totalInvoiceAmount._sum.taxAmount || 0,
         totalPaid: totalPaidAmount._sum.amount || 0,
-        outstanding: (totalInvoiceAmount._sum.totalAmount || 0) - (totalPaidAmount._sum.amount || 0),
+        outstanding: (totalInvoiceAmount._sum.taxAmount || 0) - (totalPaidAmount._sum.amount || 0),
       },
       lowStockItems,
       recentOrders: recentOrders.map((o) => ({
         id: o.id,
         orderNumber: o.orderNumber,
-        customer: o.customer.name,
-        amount: o.totalAmount,
+        //customer: o.customer.name,
+        customer: o.customer.companyName || o.customer.contactName,
+        //amount: o.totalAmount,
+        amount: o.taxAmount,
         status: o.status,
         date: o.createdAt,
       })),
@@ -155,7 +165,8 @@ export async function GET() {
         id: a.id,
         user: a.user?.name || "System",
         action: a.action,
-        module: a.module,
+        //module: a.module,
+        module: a.entityType,
         entityType: a.entityType,
         date: a.createdAt,
       })),

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { orderNumber: { contains: search, mode: "insensitive" } },
-        { customer: { name: { contains: search, mode: "insensitive" } } },
+        { customer: { contactName: { contains: search, mode: "insensitive" } } },
       ];
     }
 
@@ -48,14 +48,14 @@ export async function GET(request: NextRequest) {
       prisma.salesOrder.findMany({
         where,
         include: {
-          customer: { select: { id: true, name: true, email: true, phone: true } },
+          customer: { select: { id: true, companyName: true, contactName: true } },
           items: {
             include: {
               product: { select: { id: true, name: true, sku: true, itemType: true } },
             },
           },
           _count: {
-            select: { statusLogs: true },
+            select: { statusLog: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     const stats = await prisma.salesOrder.groupBy({
       by: ["status"],
       _count: { id: true },
-      _sum: { totalAmount: true },
+      _sum: { grandTotal: true },
     });
 
     return NextResponse.json({
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Calculate item totals
     let subtotal = 0;
     let totalTax = 0;
-    const itemsData = [];
+    const itemsData: any[] = [];
 
     for (const item of validated.items) {
       const product = await prisma.product.findUnique({
@@ -135,10 +135,8 @@ export async function POST(request: NextRequest) {
         ? await prisma.taxConfig.findUnique({ where: { id: item.taxConfigId } })
         : product.taxConfig;
 
-      const cgst = taxConfig ? taxableAmount * (taxConfig.cgstPercent / 100) : 0;
-      const sgst = taxConfig ? taxableAmount * (taxConfig.sgstPercent / 100) : 0;
-      const igst = taxConfig ? taxableAmount * (taxConfig.igstPercent / 100) : 0;
-      const itemTax = cgst + sgst + igst;
+      const taxRate = taxConfig ? taxConfig.rate / 100 : 0;
+      const itemTax = taxableAmount * taxRate;
 
       subtotal += taxableAmount;
       totalTax += itemTax;
@@ -148,9 +146,9 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discountPercent: item.discountPercent,
+        discountAmount,
         lineTotal: taxableAmount,
         taxAmount: itemTax,
-        totalWithTax: taxableAmount + itemTax,
         notes: item.notes || null,
       });
     }
@@ -171,17 +169,16 @@ export async function POST(request: NextRequest) {
           status: "ORDER_RECEIVED",
           subtotal,
           taxAmount: totalTax,
-          totalAmount,
-          notes: validated.notes || null,
+          grandTotal: totalAmount,
+          internalNotes: validated.notes || null,
           paymentTermsDays: validated.paymentTermsDays,
-          shippingMethod: validated.shippingMethod || null,
           createdById: session.user.id,
           items: {
             create: itemsData,
           },
         },
         include: {
-          customer: { select: { id: true, name: true } },
+          customer: { select: { id: true, companyName: true, contactName: true } },
           items: {
             include: {
               product: { select: { id: true, name: true, sku: true } },
@@ -197,7 +194,7 @@ export async function POST(request: NextRequest) {
           fromStatus: null,
           toStatus: "ORDER_RECEIVED",
           changedById: session.user.id,
-          remarks: "Order created",
+          notes: "Order created",
         },
       });
 
@@ -206,10 +203,9 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.user.id,
           action: "CREATE",
-          module: "ORDER",
           entityId: salesOrder.id,
           entityType: "SalesOrder",
-          newData: { orderNumber, customerId: validated.customerId, totalAmount } as any,
+          newValue: { orderNumber, customerId: validated.customerId, totalAmount } as any,
         },
       });
 

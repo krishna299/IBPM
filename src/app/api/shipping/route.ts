@@ -25,10 +25,9 @@ export async function GET(request: NextRequest) {
           salesOrder: {
             select: {
               id: true, orderNumber: true, status: true,
-              customer: { select: { id: true, name: true, phone: true } },
+              customer: { select: { id: true, contactName: true, companyName: true, phone: true } },
             },
           },
-          warehouse: { select: { id: true, name: true, code: true } },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -62,34 +61,34 @@ export async function POST(request: NextRequest) {
         data: {
           shipmentNumber: shipNumber,
           salesOrderId: validated.salesOrderId,
-          warehouseId: validated.warehouseId,
-          trackingNumber: validated.trackingNumber || null,
-          courierPartner: validated.courierPartner || null,
-          shippingMethod: validated.shippingMethod || null,
-          estimatedDelivery: validated.estimatedDelivery ? new Date(validated.estimatedDelivery) : null,
-          status: "DISPATCHED",
+          courierName: validated.courierName || null,
+          awbNumber: validated.awbNumber || null,
+          trackingUrl: validated.trackingUrl || null,
+          shipDate: validated.shipDate ? new Date(validated.shipDate) : null,
+          expectedDelivery: validated.expectedDelivery ? new Date(validated.expectedDelivery) : null,
+          weightKg: validated.weightKg || null,
+          status: "PENDING",
           notes: validated.notes || null,
         },
         include: {
           salesOrder: { select: { id: true, orderNumber: true, status: true } },
-          warehouse: { select: { name: true } },
         },
       });
 
-      // Update order status to SHIPPED
+      // Update order status to DISPATCHED
       const order = await tx.salesOrder.findUnique({ where: { id: validated.salesOrderId } });
-      if (order && ["READY_TO_SHIP"].includes(order.status)) {
+      if (order && ["READY_TO_PACK", "PACKING"].includes(order.status)) {
         await tx.salesOrder.update({
           where: { id: validated.salesOrderId },
-          data: { status: "SHIPPED" },
+          data: { status: "DISPATCHED" },
         });
         await tx.orderStatusLog.create({
           data: {
             salesOrderId: validated.salesOrderId,
             fromStatus: order.status,
-            toStatus: "SHIPPED",
+            toStatus: "DISPATCHED",
             changedById: session.user.id,
-            remarks: `Shipment created: ${shipNumber}`,
+            notes: `Shipment created: ${shipNumber}`,
           },
         });
       }
@@ -98,10 +97,9 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.user.id,
           action: "CREATE",
-          module: "SHIPPING",
           entityId: ship.id,
           entityType: "Shipment",
-          newData: { shipmentNumber: shipNumber } as any,
+          newValue: { shipmentNumber: shipNumber } as any,
         },
       });
 

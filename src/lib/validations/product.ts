@@ -87,3 +87,7 @@ export const warehouseSchema = z.object({
 });
 
 export type WarehouseInput = z.infer<typeof warehouseSchema>;
+
+export const customerInputSchema = customerSchema;
+export const vendorInputSchema = vendorSchema;
+export const warehouseInputSchema = warehouseSchema;

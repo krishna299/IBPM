@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           invoice: {
-            select: { id: true, invoiceNumber: true, totalAmount: true, balanceDue: true },
+            select: { id: true, invoiceNumber: true, grandTotal: true, balanceDue: true },
           },
-          customer: { select: { id: true, name: true } },
+          customer: { select: { id: true, companyName: true, contactName: true } },
         },
         orderBy: { paymentDate: "desc" },
         skip: (page - 1) * limit,
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         },
         include: {
           invoice: { select: { invoiceNumber: true, salesOrderId: true } },
-          customer: { select: { name: true } },
+          customer: { select: { companyName: true, contactName: true } },
         },
       });
 
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
               fromStatus: order.status,
               toStatus: "PAYMENT_RECEIVED",
               changedById: session.user.id,
-              remarks: `Payment received: ${paymentNumber} (₹${validated.amount})`,
+              notes: `Payment received: ${paymentNumber} (₹${validated.amount})`,
             },
           });
         }
@@ -119,10 +119,9 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.user.id,
           action: "CREATE",
-          module: "PAYMENT",
           entityId: pay.id,
           entityType: "Payment",
-          newData: { paymentNumber, amount: validated.amount, method: validated.paymentMethod } as any,
+          newValue: { paymentNumber, amount: validated.amount, method: validated.paymentMethod } as any,
         },
       });
 

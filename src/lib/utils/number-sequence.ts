@@ -11,3 +11,5 @@ export async function generateNumber(prefix: string): Promise<string> {
   const num = String(sequence.lastNum).padStart(sequence.padLength, "0");
   return `${prefix}-${year}-${num}`;
 }
+
+export const generateNextNumber = generateNumber;

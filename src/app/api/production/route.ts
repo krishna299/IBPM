@@ -24,12 +24,10 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           salesOrder: {
-            select: { id: true, orderNumber: true, status: true, customer: { select: { name: true } } },
+            select: { id: true, orderNumber: true, status: true, customer: { select: { contactName: true, companyName: true } } },
           },
-          bomRequirements: {
-            include: { product: { select: { id: true, name: true, sku: true, itemType: true } } },
-          },
-          productionRecords: {
+          bomRequirements: true,
+          batches: {
             include: { product: { select: { id: true, name: true, sku: true } } },
           },
         },
@@ -56,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { salesOrderId, plannedStartDate, plannedEndDate, batchSize, notes } = body;
+    const { salesOrderId, plannedStartDate, notes } = body;
 
     // Verify sales order
     const salesOrder = await prisma.salesOrder.findUnique({
@@ -66,8 +64,8 @@ export async function POST(request: NextRequest) {
           include: {
             product: {
               include: {
-                bomItems: {
-                  include: { rawMaterial: { select: { id: true, name: true, sku: true, itemType: true } } },
+                bomParent: {
+                  include: { child: { select: { id: true, name: true, sku: true, itemType: true } } },
                 },
               },
             },
@@ -78,18 +76,21 @@ export async function POST(request: NextRequest) {
 
     if (!salesOrder) return NextResponse.json({ error: "Sales order not found" }, { status: 404 });
 
-    const batchNumber = await generateNextNumber("BATCH");
+    const planNumber = await generateNextNumber("BATCH");
 
     // Auto-generate BOM requirements from order items
     const bomRequirements: any[] = [];
     for (const item of salesOrder.items) {
-      if (item.product.bomItems && item.product.bomItems.length > 0) {
-        for (const bom of item.product.bomItems) {
-          const requiredQty = bom.quantityRequired * item.quantity * (1 + bom.wastagePercent / 100);
+      if (item.product.bomParent && item.product.bomParent.length > 0) {
+        for (const bom of item.product.bomParent) {
+          const requiredQty = bom.quantity * item.quantity * (1 + bom.wastagePercent / 100);
           bomRequirements.push({
-            productId: bom.rawMaterialId,
-            requiredQuantity: requiredQty,
-            unitOfMeasure: bom.unitOfMeasure || "pcs",
+            materialId: bom.childId,
+            materialType: bom.child.itemType,
+            requiredQty,
+            availableQty: 0,
+            shortfallQty: requiredQty,
+            status: "PENDING",
           });
         }
       }
@@ -98,45 +99,34 @@ export async function POST(request: NextRequest) {
     const plan = await prisma.$transaction(async (tx) => {
       const productionPlan = await tx.productionPlan.create({
         data: {
+          planNumber,
           salesOrderId,
-          batchNumber,
-          plannedStartDate: new Date(plannedStartDate),
-          plannedEndDate: new Date(plannedEndDate),
-          batchSize: batchSize || 1,
-          status: "PLANNED",
+          plannedDate: plannedStartDate ? new Date(plannedStartDate) : null,
+          status: "DRAFT",
           notes: notes || null,
           bomRequirements: {
-            create: bomRequirements.map((r) => ({
-              productId: r.productId,
-              requiredQuantity: r.requiredQuantity,
-              availableQuantity: 0,
-              shortfallQuantity: r.requiredQuantity,
-              unitOfMeasure: r.unitOfMeasure,
-              status: "PENDING",
-            })),
+            create: bomRequirements,
           },
         },
         include: {
-          bomRequirements: {
-            include: { product: { select: { id: true, name: true, sku: true } } },
-          },
+          bomRequirements: true,
           salesOrder: { select: { orderNumber: true } },
         },
       });
 
-      // Update order status if still ORDER_CONFIRMED
-      if (salesOrder.status === "ORDER_CONFIRMED") {
+      // Update order status
+      if (["ORDER_RECEIVED", "PRODUCTION_PLANNING"].includes(salesOrder.status)) {
         await tx.salesOrder.update({
           where: { id: salesOrderId },
-          data: { status: "PRODUCTION_PLANNED" },
+          data: { status: "PRODUCTION_PLANNING" },
         });
         await tx.orderStatusLog.create({
           data: {
             salesOrderId,
-            fromStatus: "ORDER_CONFIRMED",
-            toStatus: "PRODUCTION_PLANNED",
+            fromStatus: salesOrder.status,
+            toStatus: "PRODUCTION_PLANNING",
             changedById: session.user.id,
-            remarks: `Production plan created: ${batchNumber}`,
+            notes: `Production plan created: ${planNumber}`,
           },
         });
       }
@@ -145,10 +135,9 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.user.id,
           action: "CREATE",
-          module: "PRODUCTION",
           entityId: productionPlan.id,
           entityType: "ProductionPlan",
-          newData: { batchNumber, salesOrderId } as any,
+          newValue: { planNumber, salesOrderId } as any,
         },
       });
 

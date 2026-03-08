@@ -17,7 +17,7 @@ export async function GET(
         purchaseOrders: {
           take: 10,
           orderBy: { createdAt: "desc" },
-          select: { id: true, poNumber: true, status: true, totalAmount: true, createdAt: true },
+          select: { id: true, poNumber: true, status: true, grandTotal: true, createdAt: true },
         },
         _count: { select: { purchaseOrders: true } },
       },
@@ -52,11 +52,10 @@ export async function PUT(
       data: {
         userId: session.user.id,
         action: "UPDATE",
-        module: "VENDOR",
         entityId: vendor.id,
         entityType: "Vendor",
-        previousData: existing as any,
-        newData: vendor as any,
+        oldValue: existing as any,
+        newValue: vendor as any,
       },
     });
 
@@ -84,7 +83,6 @@ export async function DELETE(
       data: {
         userId: session.user.id,
         action: "DELETE",
-        module: "VENDOR",
         entityId: params.id,
         entityType: "Vendor",
       },

@@ -12,8 +12,8 @@ export async function pushProductToZoho(productId: string) {
   if (!product) throw new Error("Product not found");
 
   // Map IBPM item types to Zoho item types
-  const zohoItemType = product.itemType === "FINISHED_GOOD" ? "sales_and_purchases" :
-                       ["RAW_MATERIAL", "PACKAGING_MATERIAL", "CONSUMABLE"].includes(product.itemType) ? "purchases" :
+  const zohoItemType = product.itemType === "FG" ? "sales_and_purchases" :
+                       ["RM", "PM", "CONSUMABLE"].includes(product.itemType) ? "purchases" :
                        "sales_and_purchases";
 
   const zohoPayload: any = {
@@ -29,9 +29,7 @@ export async function pushProductToZoho(productId: string) {
     is_taxable: true,
     stock_on_hand: 0,
     // Tax info
-    tax_percentage: product.taxConfig
-      ? product.taxConfig.cgstPercent + product.taxConfig.sgstPercent
-      : 0,
+    tax_percentage: product.taxConfig ? product.taxConfig.rate : 0,
     // Custom fields for IBPM reference
     custom_fields: [
       { label: "IBPM ID", value: product.id },
@@ -40,15 +38,15 @@ export async function pushProductToZoho(productId: string) {
   };
 
   // Add purchase info for RM/PM
-  if (["RAW_MATERIAL", "PACKAGING_MATERIAL", "CONSUMABLE"].includes(product.itemType)) {
+  if (["RM", "PM", "CONSUMABLE"].includes(product.itemType)) {
     zohoPayload.purchase_description = `${product.itemType}: ${product.name}`;
     zohoPayload.purchase_rate = product.costPrice || 0;
   }
 
   // Add sales info for FG
-  if (product.itemType === "FINISHED_GOOD") {
+  if (product.itemType === "FG") {
     zohoPayload.sales_description = product.description || product.name;
-    zohoPayload.rate = product.sellingPrice || product.mrp || 0;
+    zohoPayload.rate = product.sellingPrice || 0;
   }
 
   try {

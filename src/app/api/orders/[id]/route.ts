@@ -23,22 +23,17 @@ export async function GET(
             product: {
               select: {
                 id: true, name: true, sku: true, itemType: true,
-                hsnCode: true, weightGrams: true,
+                hsnCode: true, weightG: true,
               },
             },
           },
         },
-        statusLogs: {
-          include: {
-            changedBy: { select: { id: true, name: true } },
-          },
+        statusLog: {
           orderBy: { createdAt: "desc" },
         },
         productionPlans: {
           include: {
-            bomRequirements: {
-              include: { product: { select: { id: true, name: true, sku: true } } },
-            },
+            bomRequirements: true,
           },
         },
         shipments: true,
@@ -83,9 +78,8 @@ export async function PUT(
     const order = await prisma.salesOrder.update({
       where: { id: params.id },
       data: {
-        notes: body.notes,
+        internalNotes: body.notes,
         expectedDeliveryDate: body.expectedDeliveryDate ? new Date(body.expectedDeliveryDate) : undefined,
-        shippingMethod: body.shippingMethod,
         paymentTermsDays: body.paymentTermsDays,
         updatedAt: new Date(),
       },
@@ -95,11 +89,10 @@ export async function PUT(
       data: {
         userId: session.user.id,
         action: "UPDATE",
-        module: "ORDER",
         entityId: order.id,
         entityType: "SalesOrder",
-        previousData: existing as any,
-        newData: order as any,
+        oldValue: existing as any,
+        newValue: order as any,
       },
     });
 

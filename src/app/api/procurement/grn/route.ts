@@ -23,17 +23,10 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           purchaseOrder: {
-            select: { id: true, poNumber: true, vendor: { select: { name: true } } },
+            select: { id: true, poNumber: true, vendor: { select: { companyName: true, contactName: true } } },
           },
-          warehouse: { select: { id: true, name: true, code: true } },
-          items: {
-            include: {
-              purchaseOrderItem: {
-                include: { product: { select: { id: true, name: true, sku: true } } },
-              },
-            },
-          },
-          receivedBy: { select: { id: true, name: true } },
+          vendor: { select: { id: true, companyName: true, contactName: true } },
+          items: true,
         },
         orderBy: { receivedDate: "desc" },
         skip: (page - 1) * limit,
@@ -73,71 +66,82 @@ export async function POST(request: NextRequest) {
         data: {
           grnNumber,
           purchaseOrderId: validated.purchaseOrderId,
-          warehouseId: validated.warehouseId,
+          vendorId: po.vendorId,
           receivedDate: new Date(),
-          status: "RECEIVED",
-          receivedById: session.user.id,
+          status: "ACCEPTED",
           notes: validated.notes || null,
           items: {
-            create: validated.items.map((item) => ({
-              purchaseOrderItemId: item.purchaseOrderItemId,
-              receivedQuantity: item.receivedQuantity,
-              acceptedQuantity: item.acceptedQuantity,
-              rejectedQuantity: item.rejectedQuantity,
-              notes: item.notes || null,
-            })),
+            create: validated.items.map((item) => {
+              const poItem = po.items.find((i) => i.id === item.purchaseOrderItemId);
+              return {
+                productId: poItem?.productId || "",
+                quantity: item.acceptedQuantity,
+                accepted: item.acceptedQuantity > 0,
+                remarks: item.notes || null,
+              };
+            }),
           },
         },
-        include: {
-          items: {
-            include: {
-              purchaseOrderItem: {
-                include: { product: { select: { id: true, name: true, sku: true } } },
-              },
-            },
-          },
-        },
+        include: { items: true },
       });
 
       // Update PO item received quantities and create inventory movements
       for (const item of validated.items) {
         const poItem = po.items.find((i) => i.id === item.purchaseOrderItemId);
-        if (poItem) {
+        if (poItem && item.acceptedQuantity > 0) {
           await tx.purchaseOrderItem.update({
             where: { id: item.purchaseOrderItemId },
-            data: { receivedQuantity: { increment: item.acceptedQuantity } },
+            data: { receivedQty: { increment: item.acceptedQuantity } },
           });
 
-          // Add to inventory
-          if (item.acceptedQuantity > 0) {
-            const inventory = await tx.inventory.upsert({
-              where: {
-                productId_warehouseId: {
-                  productId: poItem.productId,
-                  warehouseId: validated.warehouseId,
-                },
+          // Find existing inventory
+          const existingInventory = await tx.inventory.findFirst({
+            where: {
+              productId: poItem.productId,
+              warehouseId: validated.warehouseId,
+              batchNumber: null,
+            },
+          });
+
+          if (existingInventory) {
+            await tx.inventory.update({
+              where: { id: existingInventory.id },
+              data: { quantityOnHand: { increment: item.acceptedQuantity } },
+            });
+
+            await tx.inventoryMovement.create({
+              data: {
+                productId: poItem.productId,
+                warehouseId: validated.warehouseId,
+                movementType: "IN",
+                quantity: item.acceptedQuantity,
+                referenceType: "GRN",
+                referenceId: grnRecord.id,
+                beforeQty: existingInventory.quantityOnHand,
+                afterQty: existingInventory.quantityOnHand + item.acceptedQuantity,
+                createdById: session.user.id,
               },
-              update: { quantityOnHand: { increment: item.acceptedQuantity } },
-              create: {
+            });
+          } else {
+            await tx.inventory.create({
+              data: {
                 productId: poItem.productId,
                 warehouseId: validated.warehouseId,
                 quantityOnHand: item.acceptedQuantity,
-                quantityReserved: 0,
               },
             });
 
-            // Record inventory movement
             await tx.inventoryMovement.create({
               data: {
-                inventoryId: inventory.id,
+                productId: poItem.productId,
+                warehouseId: validated.warehouseId,
                 movementType: "IN",
                 quantity: item.acceptedQuantity,
-                reason: `GRN: ${grnNumber}`,
                 referenceType: "GRN",
                 referenceId: grnRecord.id,
-                performedById: session.user.id,
-                beforeQuantity: inventory.quantityOnHand - item.acceptedQuantity,
-                afterQuantity: inventory.quantityOnHand,
+                beforeQty: 0,
+                afterQty: item.acceptedQuantity,
+                createdById: session.user.id,
               },
             });
           }
@@ -149,27 +153,19 @@ export async function POST(request: NextRequest) {
         where: { id: validated.purchaseOrderId },
         include: { items: true },
       });
-      const allReceived = updatedPO?.items.every((i) => i.receivedQuantity >= i.quantity);
-      if (allReceived) {
-        await tx.purchaseOrder.update({
-          where: { id: validated.purchaseOrderId },
-          data: { status: "FULLY_RECEIVED" },
-        });
-      } else {
-        await tx.purchaseOrder.update({
-          where: { id: validated.purchaseOrderId },
-          data: { status: "PARTIALLY_RECEIVED" },
-        });
-      }
+      const allReceived = updatedPO?.items.every((i) => i.receivedQty >= i.quantity);
+      await tx.purchaseOrder.update({
+        where: { id: validated.purchaseOrderId },
+        data: { status: allReceived ? "FULLY_RECEIVED" : "PARTIALLY_RECEIVED" },
+      });
 
       await tx.auditLog.create({
         data: {
           userId: session.user.id,
           action: "CREATE",
-          module: "GRN",
           entityId: grnRecord.id,
           entityType: "GRN",
-          newData: { grnNumber, purchaseOrderId: validated.purchaseOrderId } as any,
+          newValue: { grnNumber, purchaseOrderId: validated.purchaseOrderId } as any,
         },
       });
 

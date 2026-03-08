@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+ 
 import {
   Settings,
   Building2,
@@ -14,7 +15,8 @@ import {
   X,
   Loader,
 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+
+import { toast } from "sonner";
 
 interface CompanySettings {
   company_name: string;
@@ -55,7 +57,7 @@ interface Notification {
 }
 
 export default function SettingsPage() {
-  const { toast } = useToast();
+  //const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('company');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -138,11 +140,7 @@ export default function SettingsPage() {
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load settings',
-        variant: 'destructive',
-      });
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }
@@ -181,17 +179,11 @@ export default function SettingsPage() {
 
       if (!response.ok) throw new Error('Failed to save settings');
 
-      toast({
-        title: 'Success',
-        description: 'Company settings saved successfully',
-      });
+      toast.success('Company settings saved successfully');
+
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save settings',
-        variant: 'destructive',
-      });
+      toast.error('Failed to load settings');
     } finally {
       setSaving(false);
     }
@@ -208,17 +200,12 @@ export default function SettingsPage() {
 
       if (!response.ok) throw new Error('Failed to save settings');
 
-      toast({
-        title: 'Success',
-        description: 'System settings saved successfully',
-      });
+      toast.success('Company settings saved successfully');
+
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save settings',
-        variant: 'destructive',
-      });
+      toast.error('Failed to load settings');
+
     } finally {
       setSaving(false);
     }
@@ -236,19 +223,13 @@ export default function SettingsPage() {
       if (!response.ok) throw new Error('Sync failed');
       const data = await response.json();
 
-      toast({
-        title: 'Success',
-        description: `Synced ${data.result_count || 0} records`,
-      });
+      toast.success('Company settings saved successfully');
 
       fetchSyncLogs();
     } catch (error) {
       console.error('Error syncing:', error);
-      toast({
-        title: 'Error',
-        description: 'Sync failed',
-        variant: 'destructive',
-      });
+      toast.error('Failed to load settings');
+
     } finally {
       setSyncing((prev) => ({ ...prev, [entityType]: false }));
     }
@@ -265,19 +246,13 @@ export default function SettingsPage() {
 
       if (!response.ok) throw new Error('Test notification failed');
 
-      toast({
-        title: 'Success',
-        description: `Test ${type} sent successfully`,
-      });
+      toast.success('Company settings saved successfully');
 
       fetchNotifications();
     } catch (error) {
       console.error('Error sending test notification:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to send test ${type}`,
-        variant: 'destructive',
-      });
+      toast.error('Failed to load settings');
+
     } finally {
       setSyncing((prev) => ({ ...prev, [type]: false }));
     }
@@ -294,17 +269,11 @@ export default function SettingsPage() {
 
       if (!response.ok) throw new Error('Failed to clear audit log');
 
-      toast({
-        title: 'Success',
-        description: 'Audit log cleared successfully',
-      });
+      toast.success('Company settings saved successfully');
+
     } catch (error) {
       console.error('Error clearing audit log:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to clear audit log',
-        variant: 'destructive',
-      });
+      toast.error('Failed to load settings');
     }
   };
 

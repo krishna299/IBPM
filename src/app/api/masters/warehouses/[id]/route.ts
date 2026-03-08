@@ -58,11 +58,10 @@ export async function PUT(
       data: {
         userId: session.user.id,
         action: "UPDATE",
-        module: "WAREHOUSE",
         entityId: warehouse.id,
         entityType: "Warehouse",
-        previousData: existing as any,
-        newData: warehouse as any,
+        oldValue: existing as any,
+        newValue: warehouse as any,
       },
     });
 
@@ -90,7 +89,6 @@ export async function DELETE(
       data: {
         userId: session.user.id,
         action: "DELETE",
-        module: "WAREHOUSE",
         entityId: params.id,
         entityType: "Warehouse",
       },
