@@ -40,7 +40,7 @@ export default function CategoriesPage() {
       const response = await fetch('/api/masters/categories');
       if (!response.ok) throw new Error('Failed to fetch categories');
       const data = await response.json();
-      setCategories(data);
+      setCategories(data.data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
     } finally {
@@ -203,13 +203,13 @@ export default function CategoriesPage() {
       </div>
 
       {/* Category Form Modal */}
-      {showCreateModal && (
-        <CategoryFormModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onCategoryCreated={handleCategoryCreated}
-        />
-      )}
+      <CategoryFormModal
+        open={showCreateModal}
+        onOpenChange={(open: boolean) => {
+          setShowCreateModal(open);
+          if (!open) handleCategoryCreated();
+        }}
+      />
     </div>
   );
 }
