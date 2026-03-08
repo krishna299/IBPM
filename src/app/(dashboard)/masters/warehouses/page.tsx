@@ -95,7 +95,7 @@ function WarehouseFormModal({
   const [formData, setFormData] = useState<Partial<Warehouse>>({
     name: '',
     code: '',
-    warehouseType: 'GENERAL',
+    warehouseType: 'STORAGE',
     address: '',
     city: '',
     state: '',
@@ -113,7 +113,7 @@ function WarehouseFormModal({
       setFormData({
         name: '',
         code: '',
-        warehouseType: 'GENERAL',
+        warehouseType: 'STORAGE',
         address: '',
         city: '',
         state: '',
