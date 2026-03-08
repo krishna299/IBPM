@@ -17,25 +17,30 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import CreatePlanModal from '@/components/modals/CreatePlanModal';
 
-interface ProductionPlan {
+interface BOMRequirement {
   id: string;
-  batchNumber: string;
-  salesOrderId: string;
-  status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  plannedStartDate: string;
-  plannedEndDate: string;
-  batchSize: number;
-  bomItemsCount: number;
-  notes?: string;
-  bomItems?: BOMItem[];
+  materialId: string;
+  materialType: string;
+  requiredQty: number;
+  availableQty: number;
+  shortfallQty: number;
+  status: string;
 }
 
-interface BOMItem {
+interface ProductionPlan {
   id: string;
-  materialName: string;
-  requiredQuantity: number;
-  availableQuantity: number;
-  unit: string;
+  planNumber: string;
+  salesOrderId: string;
+  salesOrder?: {
+    id: string;
+    orderNumber: string;
+    customer: { contactName: string; companyName: string | null };
+  };
+  status: 'DRAFT' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  plannedDate: string | null;
+  notes?: string;
+  bomRequirements?: BOMRequirement[];
+  batches?: any[];
 }
 
 interface StatsCard {
@@ -45,14 +50,16 @@ interface StatsCard {
 }
 
 const statusColors: Record<string, string> = {
-  PLANNED: 'bg-blue-100 text-blue-800',
+  DRAFT: 'bg-gray-100 text-gray-800',
+  CONFIRMED: 'bg-blue-100 text-blue-800',
   IN_PROGRESS: 'bg-amber-100 text-amber-800',
   COMPLETED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800',
 };
 
 const statusBgColors: Record<string, string> = {
-  PLANNED: 'bg-blue-50',
+  DRAFT: 'bg-gray-50',
+  CONFIRMED: 'bg-blue-50',
   IN_PROGRESS: 'bg-amber-50',
   COMPLETED: 'bg-green-50',
   CANCELLED: 'bg-red-50',
@@ -75,7 +82,6 @@ export default function ProductionPlanningPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Fetch production plans
   const fetchPlans = async (page: number, status: string) => {
     try {
       setLoading(true);
@@ -84,32 +90,22 @@ export default function ProductionPlanningPage() {
         limit: pageSize.toString(),
       });
 
-      if (status) {
-        params.append('status', status);
-      }
-
-      if (searchQuery) {
-        params.append('search', searchQuery);
-      }
+      if (status) params.append('status', status);
+      if (searchQuery) params.append('search', searchQuery);
 
       const response = await fetch(`/api/production?${params.toString()}`);
       const data = await response.json();
 
-      setPlans(data.data || []);
+      const allPlans: ProductionPlan[] = data.data || [];
+      setPlans(allPlans);
       setTotalPages(data.pagination?.totalPages || 1);
 
-      // Calculate stats
-      const allPlans = data.data || [];
       setStats({
         totalPlans: data.pagination?.total || 0,
-        activePlans: allPlans.filter(
-          (p: ProductionPlan) => p.status === 'IN_PROGRESS'
-        ).length,
-        completedPlans: allPlans.filter(
-          (p: ProductionPlan) => p.status === 'COMPLETED'
-        ).length,
-        pendingMaterials: allPlans.filter((p: ProductionPlan) =>
-          p.bomItems?.some((item: BOMItem) => item.requiredQuantity > item.availableQuantity)
+        activePlans: allPlans.filter((p) => p.status === 'IN_PROGRESS').length,
+        completedPlans: allPlans.filter((p) => p.status === 'COMPLETED').length,
+        pendingMaterials: allPlans.filter((p) =>
+          p.bomRequirements?.some((item) => item.shortfallQty > 0)
         ).length,
       });
     } catch (error) {
@@ -147,26 +143,6 @@ export default function ProductionPlanningPage() {
     setIsCreateModalOpen(false);
     setCurrentPage(1);
     fetchPlans(1, filterStatus);
-  };
-
-  const getShortfall = (required: number, available: number) => {
-    return Math.max(0, required - available);
-  };
-
-  const getMaterialStatus = (required: number, available: number) => {
-    if (available >= required) {
-      return {
-        badge: 'In Stock',
-        badgeClass: 'bg-green-100 text-green-800',
-        icon: <CheckCircle className="w-4 h-4" />,
-      };
-    } else {
-      return {
-        badge: 'Shortage',
-        badgeClass: 'bg-red-100 text-red-800',
-        icon: <AlertTriangle className="w-4 h-4" />,
-      };
-    }
   };
 
   const statCards: StatsCard[] = [
@@ -246,7 +222,8 @@ export default function ProductionPlanningPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="">All Status</option>
-              <option value="PLANNED">Planned</option>
+              <option value="DRAFT">Draft</option>
+              <option value="CONFIRMED">Confirmed</option>
               <option value="IN_PROGRESS">In Progress</option>
               <option value="COMPLETED">Completed</option>
               <option value="CANCELLED">Cancelled</option>
@@ -268,22 +245,19 @@ export default function ProductionPlanningPage() {
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Batch #
+                      Plan #
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Sales Order #
+                      Sales Order
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                      Customer
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Planned Start
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Planned End
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Batch Size
+                      Planned Date
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                       BOM Items
@@ -295,16 +269,23 @@ export default function ProductionPlanningPage() {
                 </thead>
                 <tbody>
                   {plans.map((plan) => (
-                    <div key={plan.id}>
-                      <tr className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-900">{plan.batchNumber}</td>
+                    <>
+                      <tr key={plan.id} className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                          {plan.planNumber}
+                        </td>
                         <td className="px-6 py-4 text-sm">
                           <a
-                            href={`/dashboard/orders/${plan.salesOrderId}`}
+                            href={`/orders/${plan.salesOrderId}`}
                             className="text-purple-600 hover:text-purple-700 font-medium"
                           >
-                            {plan.salesOrderId}
+                            {plan.salesOrder?.orderNumber || plan.salesOrderId}
                           </a>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {plan.salesOrder?.customer?.companyName ||
+                            plan.salesOrder?.customer?.contactName ||
+                            '-'}
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span
@@ -316,13 +297,13 @@ export default function ProductionPlanningPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {format(new Date(plan.plannedStartDate), 'MMM dd, yyyy')}
+                          {plan.plannedDate
+                            ? format(new Date(plan.plannedDate), 'MMM dd, yyyy')
+                            : '-'}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {format(new Date(plan.plannedEndDate), 'MMM dd, yyyy')}
+                          {plan.bomRequirements?.length || 0}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{plan.batchSize}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{plan.bomItemsCount}</td>
                         <td className="px-6 py-4 text-sm">
                           <button
                             onClick={() => toggleExpandRow(plan.id)}
@@ -340,8 +321,8 @@ export default function ProductionPlanningPage() {
 
                       {/* Expanded Row Detail */}
                       {expandedRows.has(plan.id) && (
-                        <tr className={`${statusBgColors[plan.status]}`}>
-                          <td colSpan={8} className="px-6 py-4">
+                        <tr key={`${plan.id}-detail`} className={statusBgColors[plan.status]}>
+                          <td colSpan={7} className="px-6 py-4">
                             <div className="space-y-4">
                               {plan.notes && (
                                 <div>
@@ -352,7 +333,7 @@ export default function ProductionPlanningPage() {
                                 </div>
                               )}
 
-                              {plan.bomItems && plan.bomItems.length > 0 && (
+                              {plan.bomRequirements && plan.bomRequirements.length > 0 ? (
                                 <div>
                                   <h4 className="text-sm font-semibold text-gray-900 mb-3">
                                     BOM Requirements
@@ -362,7 +343,7 @@ export default function ProductionPlanningPage() {
                                       <thead>
                                         <tr className="border-b border-gray-300">
                                           <th className="text-left text-xs font-semibold text-gray-700 pb-2">
-                                            Material Name
+                                            Material Type
                                           </th>
                                           <th className="text-left text-xs font-semibold text-gray-700 pb-2">
                                             Required Qty
@@ -379,59 +360,61 @@ export default function ProductionPlanningPage() {
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {plan.bomItems.map((item) => {
-                                          const shortfall = getShortfall(
-                                            item.requiredQuantity,
-                                            item.availableQuantity
-                                          );
-                                          const materialStatus = getMaterialStatus(
-                                            item.requiredQuantity,
-                                            item.availableQuantity
-                                          );
-
-                                          return (
-                                            <tr key={item.id} className="border-b border-gray-200">
-                                              <td className="py-2 text-gray-900">
-                                                {item.materialName}
-                                              </td>
-                                              <td className="py-2 text-gray-700">
-                                                {item.requiredQuantity} {item.unit}
-                                              </td>
-                                              <td className="py-2 text-gray-700">
-                                                {item.availableQuantity} {item.unit}
-                                              </td>
-                                              <td className="py-2 text-gray-700">
-                                                {shortfall > 0 ? (
-                                                  <span className="text-red-600 font-medium">
-                                                    {shortfall} {item.unit}
-                                                  </span>
-                                                ) : (
-                                                  <span className="text-gray-500">-</span>
-                                                )}
-                                              </td>
-                                              <td className="py-2">
-                                                <span
-                                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                                                    materialStatus.badgeClass
-                                                  }`}
-                                                >
-                                                  {materialStatus.icon}
-                                                  {materialStatus.badge}
+                                        {plan.bomRequirements.map((item) => (
+                                          <tr key={item.id} className="border-b border-gray-200">
+                                            <td className="py-2 text-gray-900">
+                                              {item.materialType}
+                                            </td>
+                                            <td className="py-2 text-gray-700">
+                                              {item.requiredQty}
+                                            </td>
+                                            <td className="py-2 text-gray-700">
+                                              {item.availableQty}
+                                            </td>
+                                            <td className="py-2">
+                                              {item.shortfallQty > 0 ? (
+                                                <span className="text-red-600 font-medium">
+                                                  {item.shortfallQty}
                                                 </span>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
+                                              ) : (
+                                                <span className="text-gray-500">-</span>
+                                              )}
+                                            </td>
+                                            <td className="py-2">
+                                              <span
+                                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                                  item.shortfallQty > 0
+                                                    ? 'bg-red-100 text-red-800'
+                                                    : 'bg-green-100 text-green-800'
+                                                }`}
+                                              >
+                                                {item.shortfallQty > 0 ? (
+                                                  <>
+                                                    <AlertTriangle className="w-3 h-3" />
+                                                    Shortage
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <CheckCircle className="w-3 h-3" />
+                                                    In Stock
+                                                  </>
+                                                )}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
                                       </tbody>
                                     </table>
                                   </div>
                                 </div>
+                              ) : (
+                                <p className="text-sm text-gray-500">No BOM requirements found</p>
                               )}
                             </div>
                           </td>
                         </tr>
                       )}
-                    </div>
+                    </>
                   ))}
                 </tbody>
               </table>
@@ -467,9 +450,11 @@ export default function ProductionPlanningPage() {
 
       {/* Create Plan Modal */}
       <CreatePlanModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={handlePlanCreated}
+        open={isCreateModalOpen}
+        onOpenChange={(open: boolean) => {
+          setIsCreateModalOpen(open);
+          if (!open) handlePlanCreated();
+        }}
       />
     </div>
   );
