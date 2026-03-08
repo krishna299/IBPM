@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (itemType) {
-      where.itemType = itemType;
+      const types = itemType.split(",").map((t) => t.trim()).filter(Boolean);
+      where.itemType = types.length === 1 ? types[0] : { in: types };
     }
 
     if (categoryId) {
