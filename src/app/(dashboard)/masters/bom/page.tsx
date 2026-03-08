@@ -25,13 +25,13 @@ interface BOMItem {
     id: string;
     name: string;
     sku: string;
-    itemType: 'FINISHED_GOOD' | 'RAW_MATERIAL' | 'PACKAGING_MATERIAL';
+    itemType: 'FG' | 'RM' | 'PM' | 'CONSUMABLE';
   };
   rawMaterial: {
     id: string;
     name: string;
     sku: string;
-    itemType: 'RAW_MATERIAL' | 'PACKAGING_MATERIAL';
+    itemType: 'RM' | 'PM' | 'CONSUMABLE';
   };
 }
 
@@ -39,7 +39,7 @@ interface Product {
   id: string;
   name: string;
   sku: string;
-  itemType: 'FINISHED_GOOD' | 'RAW_MATERIAL' | 'PACKAGING_MATERIAL';
+  itemType: 'FG' | 'RM' | 'PM' | 'CONSUMABLE';
 }
 
 interface SummaryStats {
@@ -114,7 +114,7 @@ export default function BOMPage() {
   // Fetch FG products
   const fetchFGProducts = async () => {
     try {
-      const res = await fetch('/api/masters/products?itemType=FINISHED_GOOD&limit=100');
+      const res = await fetch('/api/masters/products?itemType=FG&limit=100');
       if (!res.ok) throw new Error('Failed to fetch FG products');
       const data = await res.json();
       setFgProducts(data);
@@ -127,8 +127,8 @@ export default function BOMPage() {
   const fetchRMPMProducts = async () => {
     try {
       const [rmRes, pmRes] = await Promise.all([
-        fetch('/api/masters/products?itemType=RAW_MATERIAL&limit=100'),
-        fetch('/api/masters/products?itemType=PACKAGING_MATERIAL&limit=100'),
+        fetch('/api/masters/products?itemType=RM&limit=100'),
+        fetch('/api/masters/products?itemType=PM&limit=100'),
       ]);
 
       if (!rmRes.ok || !pmRes.ok) {
@@ -242,7 +242,7 @@ export default function BOMPage() {
   };
 
   const getMaterialBadge = (itemType: string) => {
-    if (itemType === 'RAW_MATERIAL') {
+    if (itemType === 'RM') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
           <Beaker size={12} />
@@ -558,7 +558,7 @@ export default function BOMPage() {
                   {rmPmProducts.map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.name} ({product.sku}){' '}
-                      {product.itemType === 'RAW_MATERIAL' ? '[RM]' : '[PM]'}
+                      {product.itemType === 'RM' ? '[RM]' : '[PM]'}
                     </option>
                   ))}
                 </select>

@@ -34,9 +34,9 @@ export async function GET() {
       //prisma.product.count({ where: { isActive: true, itemType: "RAW_MATERIAL" } }),
       //prisma.product.count({ where: { isActive: true, itemType: "PACKAGING_MATERIAL" } }),
 
-      prisma.product.count({ where: { isActive: true, itemType: "FINISHED_GOOD" as ItemType } }),
-      prisma.product.count({ where: { isActive: true, itemType: "RAW_MATERIAL" as ItemType } }),
-      prisma.product.count({ where: { isActive: true, itemType: "PACKAGING_MATERIAL" as ItemType } }),
+      prisma.product.count({ where: { isActive: true, itemType: "FG" as ItemType } }),
+      prisma.product.count({ where: { isActive: true, itemType: "RM" as ItemType } }),
+      prisma.product.count({ where: { isActive: true, itemType: "PM" as ItemType } }),
 
       // Contacts
       prisma.customer.count({ where: { isActive: true } }),

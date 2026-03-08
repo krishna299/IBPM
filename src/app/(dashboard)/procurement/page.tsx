@@ -123,7 +123,7 @@ export default function ProcurementPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('/api/masters/products?itemType=RAW_MATERIAL,PACKAGING_MATERIAL&limit=200');
+        const response = await fetch('/api/masters/products?itemType=RM,PM&limit=200');
         if (response.ok) {
           const data = await response.json();
           setProducts(data.products || []);

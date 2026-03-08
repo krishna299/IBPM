@@ -138,7 +138,7 @@ export default function CreateSalesOrderPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('/api/masters/products?itemType=FINISHED_GOOD&limit=200');
+        const response = await fetch('/api/masters/products?itemType=FG&limit=200');
         if (!response.ok) throw new Error('Failed to fetch products');
         const data = await response.json();
         setProducts(data.data || []);

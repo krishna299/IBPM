@@ -18,7 +18,7 @@ interface Warehouse {
   id: string;
   name: string;
   code: string;
-  warehouseType: 'FINISHED_GOODS' | 'RAW_MATERIALS' | 'PACKAGING' | 'GENERAL';
+  warehouseType: 'MANUFACTURING' | 'STORAGE' | 'DISPATCH';
   address: string;
   city: string;
   state: string;
@@ -74,10 +74,9 @@ const INDIAN_STATES = [
 ];
 
 const WAREHOUSE_TYPES = [
-  { value: 'FINISHED_GOODS', label: 'Finished Goods' },
-  { value: 'RAW_MATERIALS', label: 'Raw Materials' },
-  { value: 'PACKAGING', label: 'Packaging' },
-  { value: 'GENERAL', label: 'General' },
+  { value: 'MANUFACTURING', label: 'Manufacturing' },
+  { value: 'STORAGE', label: 'Storage' },
+  { value: 'DISPATCH', label: 'Dispatch' },
 ];
 
 function WarehouseFormModal({
@@ -355,10 +354,9 @@ function WarehouseFormModal({
 
 function WarehouseTypeStatus({ type }: { type: Warehouse['warehouseType'] }) {
   const typeConfig = {
-    FINISHED_GOODS: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'FG' },
-    RAW_MATERIALS: { bg: 'bg-green-100', text: 'text-green-800', label: 'RM' },
-    PACKAGING: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'PK' },
-    GENERAL: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'GN' },
+    MANUFACTURING: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'MFG' },
+    STORAGE: { bg: 'bg-green-100', text: 'text-green-800', label: 'STR' },
+    DISPATCH: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'DSP' },
   };
 
   const config = typeConfig[type];
