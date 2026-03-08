@@ -82,19 +82,15 @@ export async function POST(request: NextRequest) {
       totalTax += itemTax;
 
       itemsData.push({
-        productId: item.productId,        
-        productName: item.productName || "",   // ← add this
+        productId: item.productId,
+        productName: item.productName || "",
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discountPercent: item.discountPercent,
-        taxableAmount,
-        cgstPercent: item.cgstPercent,
-        cgstAmount: cgst,
-        sgstPercent: item.sgstPercent,
-        sgstAmount: sgst,
-        igstPercent: item.igstPercent,
-        igstAmount: igst,
-        totalAmount: taxableAmount + itemTax,
+        discount: item.discountPercent,
+        cgst,
+        sgst,
+        igst,
+        lineTotal: taxableAmount + itemTax,
       });
     }
 

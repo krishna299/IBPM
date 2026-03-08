@@ -47,7 +47,7 @@ export async function GET() {
       prisma.salesOrder.groupBy({
         by: ["status"],
         _count: { id: true },
-        _sum: { taxAmount: true },
+        _sum: { grandTotal: true },
       }),
 
       // Recent orders
@@ -62,7 +62,7 @@ export async function GET() {
 
       // Finance
       //prisma.invoice.aggregate({ _sum: { grandTotal: true } }),
-      prisma.invoice.aggregate({ _sum: { taxAmount: true } }),
+      prisma.invoice.aggregate({ _sum: { grandTotal: true } }),
       prisma.payment.aggregate({ _sum: { amount: true }, where: { status: "COMPLETED" } }),
 
       // Low stock (items with qty below reorder level)
@@ -105,17 +105,17 @@ export async function GET() {
 
     // Process order stats
     const pendingOrders = ordersByStatus
-      .filter((s) => ["ORDER_RECEIVED", "ORDER_CONFIRMED"].includes(s.status))
+      .filter((s) => ["ORDER_RECEIVED", "PRODUCTION_PLANNING", "SOURCING_IN_PROGRESS"].includes(s.status))
       .reduce((acc, s) => acc + s._count.id, 0);
 
     const inProduction = ordersByStatus
       .filter((s) =>
-        ["PRODUCTION_PLANNED", "MATERIALS_SOURCED", "IN_PRODUCTION", "PRODUCTION_COMPLETE"].includes(s.status)
+        ["MATERIALS_RECEIVED", "MANUFACTURING", "QC_IN_PROGRESS", "QC_APPROVED", "QC_HOLD", "READY_TO_PACK", "PACKING"].includes(s.status)
       )
       .reduce((acc, s) => acc + s._count.id, 0);
 
     const readyToShip = ordersByStatus
-      .filter((s) => ["READY_TO_SHIP", "SHIPPED", "IN_TRANSIT"].includes(s.status))
+      .filter((s) => ["DISPATCHED", "IN_TRANSIT"].includes(s.status))
       .reduce((acc, s) => acc + s._count.id, 0);
 
     const completedOrders = ordersByStatus
@@ -123,7 +123,7 @@ export async function GET() {
       .reduce((acc, s) => acc + s._count.id, 0);
 
     //const totalRevenue = ordersByStatus.reduce((acc, s) => acc + (s._sum.totalAmount || 0), 0);
-    const totalRevenue = ordersByStatus.reduce((acc, s) => acc + (Number(s._sum.taxAmount) || 0), 0);
+    const totalRevenue = ordersByStatus.reduce((acc, s) => acc + (Number(s._sum.grandTotal) || 0), 0);
     return NextResponse.json({
       products: {
         total: totalProducts,
@@ -146,9 +146,9 @@ export async function GET() {
       },
       finance: {
         //totalInvoiced: totalInvoiceAmount._sum.totalAmount || 0,
-        totalInvoiced: totalInvoiceAmount._sum.taxAmount || 0,
+        totalInvoiced: totalInvoiceAmount._sum.grandTotal || 0,
         totalPaid: totalPaidAmount._sum.amount || 0,
-        outstanding: (totalInvoiceAmount._sum.taxAmount || 0) - (totalPaidAmount._sum.amount || 0),
+        outstanding: (totalInvoiceAmount._sum.grandTotal || 0) - (totalPaidAmount._sum.amount || 0),
       },
       lowStockItems,
       recentOrders: recentOrders.map((o) => ({
@@ -157,7 +157,7 @@ export async function GET() {
         //customer: o.customer.name,
         customer: o.customer.companyName || o.customer.contactName,
         //amount: o.totalAmount,
-        amount: o.taxAmount,
+        amount: o.grandTotal,
         status: o.status,
         date: o.createdAt,
       })),

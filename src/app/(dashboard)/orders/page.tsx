@@ -29,7 +29,8 @@ interface Order {
 
 interface Customer {
   id: string;
-  name: string;
+  contactName: string;
+  companyName?: string | null;
 }
 
 interface ApiResponse {
@@ -292,7 +293,7 @@ export default function OrdersPage() {
             <option value="">All Customers</option>
             {customers.map((customer) => (
               <option key={customer.id} value={customer.id}>
-                {customer.name}
+                {customer.companyName || customer.contactName}
               </option>
             ))}
           </select>

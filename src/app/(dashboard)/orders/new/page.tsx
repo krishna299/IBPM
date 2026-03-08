@@ -22,7 +22,8 @@ import { Card } from '@/components/ui/card';
 
 interface Customer {
   id: string;
-  name: string;
+  contactName: string;
+  companyName: string | null;
   email: string;
   phone: string;
   gstNumber: string;
@@ -366,7 +367,7 @@ export default function CreateSalesOrderPage() {
                   <option value="">Choose a customer...</option>
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
-                      {customer.name}
+                      {customer.companyName || customer.contactName}
                     </option>
                   ))}
                 </select>
@@ -376,7 +377,7 @@ export default function CreateSalesOrderPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                   <div>
                     <p className="text-sm text-gray-600">Name</p>
-                    <p className="font-medium text-gray-900">{selectedCustomer.name}</p>
+                    <p className="font-medium text-gray-900">{selectedCustomer.companyName || selectedCustomer.contactName}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Email</p>

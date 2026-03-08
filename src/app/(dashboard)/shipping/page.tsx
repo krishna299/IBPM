@@ -19,14 +19,16 @@ interface Shipment {
   id: string;
   shipmentNumber: string;
   salesOrderId: string;
-  orderNumber: string;
-  customerName: string;
-  warehouseName: string;
-  courierPartner: string;
-  trackingNumber: string;
-  status: 'DISPATCHED' | 'IN_TRANSIT' | 'DELIVERED' | 'RETURNED';
-  estimatedDelivery: string;
+  courierName: string | null;
+  awbNumber: string | null;
+  status: string;
+  expectedDelivery: string | null;
   createdAt: string;
+  salesOrder: {
+    id: string;
+    orderNumber: string;
+    customer: { contactName: string; companyName: string | null };
+  };
 }
 
 interface Stats {
@@ -37,17 +39,23 @@ interface Stats {
 }
 
 const statusColors: Record<string, string> = {
-  DISPATCHED: 'bg-blue-100 text-blue-800 border-blue-300',
+  PENDING: 'bg-gray-100 text-gray-800 border-gray-300',
+  PICKED_UP: 'bg-blue-100 text-blue-800 border-blue-300',
   IN_TRANSIT: 'bg-amber-100 text-amber-800 border-amber-300',
+  OUT_FOR_DELIVERY: 'bg-purple-100 text-purple-800 border-purple-300',
   DELIVERED: 'bg-green-100 text-green-800 border-green-300',
   RETURNED: 'bg-red-100 text-red-800 border-red-300',
+  CANCELLED: 'bg-gray-100 text-gray-500 border-gray-300',
 };
 
 const statusIcons: Record<string, React.ReactNode> = {
-  DISPATCHED: <Package className="w-4 h-4" />,
+  PENDING: <Clock className="w-4 h-4" />,
+  PICKED_UP: <Package className="w-4 h-4" />,
   IN_TRANSIT: <Truck className="w-4 h-4" />,
+  OUT_FOR_DELIVERY: <MapPin className="w-4 h-4" />,
   DELIVERED: <CheckCircle className="w-4 h-4" />,
   RETURNED: <MapPin className="w-4 h-4" />,
+  CANCELLED: <Package className="w-4 h-4" />,
 };
 
 export default function ShippingPage() {
@@ -86,13 +94,14 @@ export default function ShippingPage() {
       if (!response.ok) throw new Error('Failed to fetch shipments');
 
       const data = await response.json();
-      setShipments(data.shipments || []);
-      setTotalPages(data.totalPages || 1);
+      setShipments(data.data || []);
+      setTotalPages(data.pagination?.totalPages || 1);
+      const all = data.data || [];
       setStats({
-        totalShipments: data.stats?.totalShipments || 0,
-        dispatched: data.stats?.dispatched || 0,
-        inTransit: data.stats?.inTransit || 0,
-        delivered: data.stats?.delivered || 0,
+        totalShipments: data.pagination?.total || all.length,
+        dispatched: all.filter((s: Shipment) => s.status === 'PICKED_UP').length,
+        inTransit: all.filter((s: Shipment) => s.status === 'IN_TRANSIT').length,
+        delivered: all.filter((s: Shipment) => s.status === 'DELIVERED').length,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -190,10 +199,13 @@ export default function ShippingPage() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent bg-white"
             >
               <option value="">All Statuses</option>
-              <option value="DISPATCHED">Dispatched</option>
+              <option value="PENDING">Pending</option>
+              <option value="PICKED_UP">Picked Up</option>
               <option value="IN_TRANSIT">In Transit</option>
+              <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
               <option value="DELIVERED">Delivered</option>
               <option value="RETURNED">Returned</option>
+              <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
         </div>
@@ -227,9 +239,6 @@ export default function ShippingPage() {
                       Customer
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                      Warehouse
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                       Courier
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
@@ -260,21 +269,18 @@ export default function ShippingPage() {
                           href={`/orders/${shipment.salesOrderId}`}
                           className="text-sky-600 hover:text-sky-700 font-medium flex items-center gap-1"
                         >
-                          {shipment.orderNumber}
+                          {shipment.salesOrder?.orderNumber}
                           <ExternalLink className="w-3 h-3" />
                         </Link>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
-                        {shipment.customerName}
+                        {shipment.salesOrder?.customer?.companyName || shipment.salesOrder?.customer?.contactName}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
-                        {shipment.warehouseName}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {shipment.courierPartner}
+                        {shipment.courierName || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 font-mono">
-                        {shipment.trackingNumber}
+                        {shipment.awbNumber || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <div
@@ -287,10 +293,9 @@ export default function ShippingPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
-                        {format(
-                          new Date(shipment.estimatedDelivery),
-                          'MMM dd, yyyy'
-                        )}
+                        {shipment.expectedDelivery
+                          ? format(new Date(shipment.expectedDelivery), 'MMM dd, yyyy')
+                          : '-'}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <button className="text-sky-600 hover:text-sky-700 font-medium">

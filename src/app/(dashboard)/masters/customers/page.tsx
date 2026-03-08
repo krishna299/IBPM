@@ -17,17 +17,14 @@ import { Input } from '@/components/ui/input';
 
 interface Customer {
   id: string;
-  name: string;
+  contactName: string;
+  companyName?: string | null;
   email: string;
   phone: string;
-  alternatePhone?: string;
-  gstNumber?: string;
-  panNumber?: string;
-  billingAddress?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  country: string;
+  altPhone?: string | null;
+  gstNumber?: string | null;
+  panNumber?: string | null;
+  billingAddress?: any;
   creditLimit?: number;
   paymentTermsDays: number;
   isActive: boolean;
@@ -49,7 +46,8 @@ interface ApiResponse {
 }
 
 interface CustomerFormData {
-  name: string;
+  contactName: string;
+  companyName: string;
   email: string;
   phone: string;
   alternatePhone: string;
@@ -108,7 +106,8 @@ function CustomerFormModal({
   onSuccess: () => void;
 }) {
   const [formData, setFormData] = useState<CustomerFormData>({
-    name: '',
+    contactName: '',
+    companyName: '',
     email: '',
     phone: '',
     alternatePhone: '',
@@ -139,8 +138,8 @@ function CustomerFormModal({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Customer name is required';
+    if (!formData.contactName.trim()) {
+      newErrors.contactName = 'Customer name is required';
     }
 
     if (!formData.phone.trim()) {
@@ -186,7 +185,8 @@ function CustomerFormModal({
       }
 
       setFormData({
-        name: '',
+        contactName: '',
+        companyName: '',
         email: '',
         phone: '',
         alternatePhone: '',
@@ -234,14 +234,14 @@ function CustomerFormModal({
               </label>
               <Input
                 type="text"
-                name="name"
-                value={formData.name}
+                name="contactName"
+                value={formData.contactName}
                 onChange={handleInputChange}
-                placeholder="Enter customer name"
-                className={errors.name ? 'border-red-500' : ''}
+                placeholder="Enter contact name"
+                className={errors.contactName ? 'border-red-500' : ''}
               />
-              {errors.name && (
-                <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+              {errors.contactName && (
+                <p className="text-red-500 text-xs mt-1">{errors.contactName}</p>
               )}
             </div>
 
@@ -604,7 +604,7 @@ export default function CustomersPage() {
                   {customers.map((customer) => (
                     <tr key={customer.id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                        {customer.name}
+                        {customer.companyName || customer.contactName}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {customer.email || '-'}
@@ -616,9 +616,9 @@ export default function CustomersPage() {
                         {customer.gstNumber || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
-                        {customer.city && customer.state
-                          ? `${customer.city}, ${customer.state}`
-                          : customer.city || customer.state || '-'}
+                        {customer.billingAddress?.city && customer.billingAddress?.state
+                          ? `${customer.billingAddress.city}, ${customer.billingAddress.state}`
+                          : customer.billingAddress?.city || customer.billingAddress?.state || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 font-medium">
                         {customer._count?.salesOrders || 0}
