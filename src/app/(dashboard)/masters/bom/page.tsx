@@ -15,19 +15,19 @@ import {
 
 interface BOMItem {
   id: string;
-  productId: string;
-  rawMaterialId: string;
-  quantityRequired: number;
-  unitOfMeasure: string;
+  parentId: string;
+  childId: string;
+  quantity: number;
+  unit: string | null;
   wastagePercent: number;
   notes: string | null;
-  product: {
+  parent: {
     id: string;
     name: string;
     sku: string;
     itemType: 'FG' | 'RM' | 'PM' | 'CONSUMABLE';
   };
-  rawMaterial: {
+  child: {
     id: string;
     name: string;
     sku: string;
@@ -92,15 +92,14 @@ export default function BOMPage() {
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch BOM');
       const data = await res.json();
-      setBomItems(data);
+      const items: BOMItem[] = data.data || [];
+      setBomItems(items);
 
       // Calculate summary stats
-      const uniqueFGProducts = new Set(data.map((item: BOMItem) => item.productId))
-        .size;
-      const uniqueMaterials = new Set(data.map((item: BOMItem) => item.rawMaterialId))
-        .size;
+      const uniqueFGProducts = new Set(items.map((item) => item.parentId)).size;
+      const uniqueMaterials = new Set(items.map((item) => item.childId)).size;
       setSummaryStats({
-        totalBOMEntries: data.length,
+        totalBOMEntries: items.length,
         fgProductsWithBOM: uniqueFGProducts,
         materialsUsed: uniqueMaterials,
       });
@@ -117,7 +116,7 @@ export default function BOMPage() {
       const res = await fetch('/api/masters/products?itemType=FG&limit=100');
       if (!res.ok) throw new Error('Failed to fetch FG products');
       const data = await res.json();
-      setFgProducts(data);
+      setFgProducts(data.data || []);
     } catch (err) {
       console.error('Error fetching FG products:', err);
     }
@@ -137,7 +136,7 @@ export default function BOMPage() {
 
       const rmData = await rmRes.json();
       const pmData = await pmRes.json();
-      setRmPmProducts([...rmData, ...pmData]);
+      setRmPmProducts([...(rmData.data || []), ...(pmData.data || [])]);
     } catch (err) {
       console.error('Error fetching RM/PM products:', err);
     }
@@ -218,10 +217,10 @@ export default function BOMPage() {
   // Group BOM items by FG product
   const groupedBOM = bomItems.reduce(
     (acc, item) => {
-      const productId = item.productId;
+      const productId = item.parentId;
       if (!acc[productId]) {
         acc[productId] = {
-          product: item.product,
+          product: item.parent,
           items: [],
         };
       }
@@ -409,26 +408,23 @@ export default function BOMPage() {
                 </thead>
                 <tbody>
                   {Object.entries(groupedBOM).map(([fgProductId, group], groupIdx) => (
-                    <tbody
-                      key={fgProductId}
-                      className={
-                        groupIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
-                      }
-                    >
+                    <>
                       {group.items.map((item, itemIdx) => (
                         <tr
                           key={item.id}
-                          className={`border-b border-slate-200 hover:bg-slate-100 transition-colors ${
-                            groupIdx % 2 !== 0 ? 'hover:bg-slate-200' : ''
+                          className={`border-b border-slate-200 transition-colors ${
+                            groupIdx % 2 === 0
+                              ? 'bg-white hover:bg-slate-100'
+                              : 'bg-slate-50 hover:bg-slate-200'
                           }`}
                         >
                           {/* FG Product - show name only for first item in group */}
                           <td className="px-6 py-4 text-sm">
                             {itemIdx === 0 ? (
                               <div className="font-medium text-slate-900">
-                                {item.product.name}
+                                {item.parent.name}
                                 <p className="text-xs text-slate-500 font-normal mt-1">
-                                  SKU: {item.product.sku}
+                                  SKU: {item.parent.sku}
                                 </p>
                               </div>
                             ) : (
@@ -439,26 +435,26 @@ export default function BOMPage() {
                           {/* Material */}
                           <td className="px-6 py-4 text-sm">
                             <div className="font-medium text-slate-900">
-                              {item.rawMaterial.name}
+                              {item.child.name}
                               <p className="text-xs text-slate-500 font-normal mt-1">
-                                SKU: {item.rawMaterial.sku}
+                                SKU: {item.child.sku}
                               </p>
                             </div>
                           </td>
 
                           {/* Type Badge */}
                           <td className="px-6 py-4 text-center">
-                            {getMaterialBadge(item.rawMaterial.itemType)}
+                            {getMaterialBadge(item.child.itemType)}
                           </td>
 
                           {/* Qty Required */}
                           <td className="px-6 py-4 text-sm text-right text-slate-900 font-medium">
-                            {item.quantityRequired.toFixed(3)}
+                            {item.quantity.toFixed(3)}
                           </td>
 
                           {/* UOM */}
                           <td className="px-6 py-4 text-sm text-center text-slate-600">
-                            {item.unitOfMeasure || '-'}
+                            {item.unit || '-'}
                           </td>
 
                           {/* Wastage % */}
@@ -468,7 +464,7 @@ export default function BOMPage() {
 
                           {/* Effective Qty */}
                           <td className="px-6 py-4 text-sm text-right font-medium text-indigo-600">
-                            {calculateEffectiveQty(item.quantityRequired, item.wastagePercent)}
+                            {calculateEffectiveQty(item.quantity, item.wastagePercent)}
                           </td>
 
                           {/* Notes */}
@@ -495,7 +491,7 @@ export default function BOMPage() {
                           </td>
                         </tr>
                       ))}
-                    </tbody>
+                    </>
                   ))}
                 </tbody>
               </table>
