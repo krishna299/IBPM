@@ -120,23 +120,29 @@ export default function SettingsPage() {
       if (!response.ok) throw new Error('Failed to fetch settings');
       const data = await response.json();
 
+      const s = data.settings || {};
+      const company = s.company || {};
+      const system = s.system || {};
+      const notifications = s.notifications || {};
+      const zoho = s.zoho || {};
+
       setCompanySettings({
-        company_name: data.company_name || '',
-        company_gst: data.company_gst || '',
-        company_address: data.company_address || '',
-        company_email: data.company_email || '',
-        company_phone: data.company_phone || '',
-        currency: data.currency || 'INR',
-        fiscal_year_start: data.fiscal_year_start || '04',
+        company_name: company.company_name || '',
+        company_gst: company.company_gst || '',
+        company_address: company.company_address || '',
+        company_email: company.company_email || '',
+        company_phone: company.company_phone || '',
+        currency: system.currency || 'INR',
+        fiscal_year_start: system.fiscal_year_start || '04',
       });
 
       setSystemSettings({
-        low_stock_threshold: data.low_stock_threshold || 10,
-        order_auto_number: data.order_auto_number ?? true,
-        notification_email_enabled: data.notification_email_enabled ?? false,
-        notification_sms_enabled: data.notification_sms_enabled ?? false,
-        notification_whatsapp_enabled: data.notification_whatsapp_enabled ?? false,
-        zoho_sync_enabled: data.zoho_sync_enabled ?? false,
+        low_stock_threshold: parseInt(system.low_stock_threshold || '10') || 10,
+        order_auto_number: system.order_auto_number !== 'false',
+        notification_email_enabled: notifications.notification_email_enabled === 'true',
+        notification_sms_enabled: notifications.notification_sms_enabled === 'true',
+        notification_whatsapp_enabled: notifications.notification_whatsapp_enabled === 'true',
+        zoho_sync_enabled: zoho.zoho_sync_enabled === 'true',
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -183,7 +189,7 @@ export default function SettingsPage() {
 
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast.error('Failed to load settings');
+      toast.error('Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -200,11 +206,11 @@ export default function SettingsPage() {
 
       if (!response.ok) throw new Error('Failed to save settings');
 
-      toast.success('Company settings saved successfully');
+      toast.success('System settings saved successfully');
 
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast.error('Failed to load settings');
+      toast.error('Failed to save settings');
 
     } finally {
       setSaving(false);
@@ -221,14 +227,13 @@ export default function SettingsPage() {
       });
 
       if (!response.ok) throw new Error('Sync failed');
-      const data = await response.json();
 
-      toast.success('Company settings saved successfully');
+      toast.success('Sync completed successfully');
 
       fetchSyncLogs();
     } catch (error) {
       console.error('Error syncing:', error);
-      toast.error('Failed to load settings');
+      toast.error('Sync failed');
 
     } finally {
       setSyncing((prev) => ({ ...prev, [entityType]: false }));
@@ -236,45 +241,11 @@ export default function SettingsPage() {
   };
 
   const handleTestNotification = async (type: 'email' | 'sms' | 'whatsapp') => {
-    try {
-      setSyncing((prev) => ({ ...prev, [type]: true }));
-      const response = await fetch('/api/notifications/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type }),
-      });
-
-      if (!response.ok) throw new Error('Test notification failed');
-
-      toast.success('Company settings saved successfully');
-
-      fetchNotifications();
-    } catch (error) {
-      console.error('Error sending test notification:', error);
-      toast.error('Failed to load settings');
-
-    } finally {
-      setSyncing((prev) => ({ ...prev, [type]: false }));
-    }
+    toast.error(`Test ${type} notification is not configured yet`);
   };
 
   const handleClearAuditLog = async () => {
-    if (!confirm('Are you sure you want to clear the audit log? This action cannot be undone.')) {
-      return;
-    }
-    try {
-      const response = await fetch('/api/dashboard/audit-log', {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to clear audit log');
-
-      toast.success('Company settings saved successfully');
-
-    } catch (error) {
-      console.error('Error clearing audit log:', error);
-      toast.error('Failed to load settings');
-    }
+    toast.error('Clear audit log is not available');
   };
 
   if (loading) {
