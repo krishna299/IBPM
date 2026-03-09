@@ -375,14 +375,14 @@ async function main() {
 
   // ─── 10. NUMBER SEQUENCES ─────────────────────────────
   const sequences = [
-    { prefix: "SO", currentNumber: 0, paddingLength: 4 },
-    { prefix: "PO", currentNumber: 0, paddingLength: 4 },
-    { prefix: "INV", currentNumber: 0, paddingLength: 4 },
-    { prefix: "GRN", currentNumber: 0, paddingLength: 4 },
-    { prefix: "BATCH", currentNumber: 0, paddingLength: 5 },
-    { prefix: "SHIP", currentNumber: 0, paddingLength: 4 },
-    { prefix: "PAY", currentNumber: 0, paddingLength: 4 },
-    { prefix: "QC", currentNumber: 0, paddingLength: 4 },
+    { prefix: "SO", lastNum: 0, padLength: 4 },
+    { prefix: "PO", lastNum: 0, padLength: 4 },
+    { prefix: "INV", lastNum: 0, padLength: 4 },
+    { prefix: "GRN", lastNum: 0, padLength: 4 },
+    { prefix: "BATCH", lastNum: 0, padLength: 5 },
+    { prefix: "SHIP", lastNum: 0, padLength: 4 },
+    { prefix: "PAY", lastNum: 0, padLength: 4 },
+    { prefix: "QC", lastNum: 0, padLength: 4 },
   ];
 
   for (const seq of sequences) {
