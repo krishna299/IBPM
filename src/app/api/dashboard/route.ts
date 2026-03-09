@@ -124,7 +124,7 @@ export async function GET() {
 
     //const totalRevenue = ordersByStatus.reduce((acc, s) => acc + (s._sum.totalAmount || 0), 0);
     const totalRevenue = ordersByStatus.reduce((acc, s) => acc + (Number(s._sum.grandTotal) || 0), 0);
-    return NextResponse.json({
+    const responseData = {
       products: {
         total: totalProducts,
         fg: totalFG,
@@ -180,7 +180,15 @@ export async function GET() {
       notifications: {
         last24h: notificationStats,
       },
-    });
+    };
+
+    return NextResponse.json(
+      JSON.parse(
+        JSON.stringify(responseData, (_, v) =>
+          typeof v === "bigint" ? Number(v) : v
+        )
+      )
+    );
   } catch (error) {
     console.error("GET /api/dashboard error:", error);
     return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
