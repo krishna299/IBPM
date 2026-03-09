@@ -224,21 +224,23 @@ async function main() {
   ];
 
   for (const cat of categoriesData) {
+    const parentSlug = cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-");
     const parent = await prisma.category.upsert({
-      where: { id: cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-cat" },
+      where: { slug: parentSlug },
       update: {},
-      create: { 
+      create: {
         name: cat.name,
-        slug: cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-")
+        slug: parentSlug,
       },
     });
     for (const childName of cat.children) {
+      const childSlug = childName.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + parentSlug;
       await prisma.category.upsert({
-        where: { id: childName.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-") },
+        where: { slug: childSlug },
         update: {},
-        create: { 
+        create: {
           name: childName,
-          slug: childName.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+          slug: childSlug,
           parentId: parent.id
         },
       });
@@ -273,19 +275,18 @@ async function main() {
 
   // ─── 6. TAX CONFIGS (Indian GST) ─────────────────────
   const taxData = [
-    { name: "GST 5%", rate: 5, hsnCode: "3304", cgstPercent: 2.5, sgstPercent: 2.5, igstPercent: 5, cessPercent: 0 },
-    { name: "GST 12%", rate: 12, hsnCode: "3305", cgstPercent: 6, sgstPercent: 6, igstPercent: 12, cessPercent: 0 },
-    { name: "GST 18%", rate: 18, hsnCode: "3307", cgstPercent: 9, sgstPercent: 9, igstPercent: 18, cessPercent: 0 },
-    { name: "GST 28%", rate: 28, hsnCode: "3303", cgstPercent: 14, sgstPercent: 14, igstPercent: 28, cessPercent: 0 },
-    { name: "GST Exempt", rate: 0, hsnCode: "", cgstPercent: 0, sgstPercent: 0, igstPercent: 0, cessPercent: 0 },
+    { name: "GST 5%", rate: 5, taxType: "GST" as const, hsnRange: "3304" },
+    { name: "GST 12%", rate: 12, taxType: "GST" as const, hsnRange: "3305" },
+    { name: "GST 18%", rate: 18, taxType: "GST" as const, hsnRange: "3307" },
+    { name: "GST 28%", rate: 28, taxType: "GST" as const, hsnRange: "3303" },
+    { name: "GST Exempt", rate: 0, taxType: "EXEMPT" as const, hsnRange: null },
   ];
 
   for (const tax of taxData) {
-    await prisma.taxConfig.upsert({
-      where: { id: tax.name.toLowerCase().replace(/[^a-z0-9]/g, "-") },
-      update: {},
-      create: tax,
-    });
+    const existing = await prisma.taxConfig.findFirst({ where: { name: tax.name } });
+    if (!existing) {
+      await prisma.taxConfig.create({ data: tax });
+    }
   }
   console.log(`✅ ${taxData.length} tax configurations created`);
 
@@ -314,65 +315,60 @@ async function main() {
 
   // ─── 8. PACKAGING OPTIONS ─────────────────────────────
   const packagingData = [
-    { name: "50ml Bottle", type: "BOTTLE", materialType: "PET", size: "50ml", costPerUnit: 8.50 },
-    { name: "100ml Bottle", type: "BOTTLE", materialType: "PET", size: "100ml", costPerUnit: 12.00 },
-    { name: "200ml Bottle", type: "BOTTLE", materialType: "PET", size: "200ml", costPerUnit: 18.00 },
-    { name: "500ml Bottle", type: "BOTTLE", materialType: "HDPE", size: "500ml", costPerUnit: 25.00 },
-
-    { name: "30ml Jar", type: "JAR", materialType: "Glass", size: "30ml", costPerUnit: 15.00 },
-    { name: "50ml Jar", type: "JAR", materialType: "Glass", size: "50ml", costPerUnit: 20.00 },
-
-    { name: "30ml Tube", type: "TUBE", materialType: "Aluminium", size: "30ml", costPerUnit: 6.00 },
-    { name: "50ml Tube", type: "TUBE", materialType: "Aluminium", size: "50ml", costPerUnit: 8.00 },
-
-    { name: "Pump Dispenser", type: "CAP", materialType: "PP", size: "Standard", costPerUnit: 5.00 },
-    { name: "Flip Cap", type: "CAP", materialType: "PP", size: "Standard", costPerUnit: 2.50 },
-
-    { name: "Unit Carton Box", type: "BOX", materialType: "Cardboard", size: "Standard", costPerUnit: 4.00 },
+    { name: "50ml Bottle", type: "bottle", material: "PET", costPerUnit: 8.50 },
+    { name: "100ml Bottle", type: "bottle", material: "PET", costPerUnit: 12.00 },
+    { name: "200ml Bottle", type: "bottle", material: "PET", costPerUnit: 18.00 },
+    { name: "500ml Bottle", type: "bottle", material: "HDPE", costPerUnit: 25.00 },
+    { name: "30ml Jar", type: "jar", material: "Glass", costPerUnit: 15.00 },
+    { name: "50ml Jar", type: "jar", material: "Glass", costPerUnit: 20.00 },
+    { name: "30ml Tube", type: "tube", material: "Aluminium", costPerUnit: 6.00 },
+    { name: "50ml Tube", type: "tube", material: "Aluminium", costPerUnit: 8.00 },
+    { name: "Pump Dispenser", type: "cap", material: "PP", costPerUnit: 5.00 },
+    { name: "Flip Cap", type: "cap", material: "PP", costPerUnit: 2.50 },
+    { name: "Unit Carton Box", type: "box", material: "Cardboard", costPerUnit: 4.00 },
   ];
 
   for (const pkg of packagingData) {
-    await prisma.packagingOption.upsert({
-      where: { id: pkg.name.toLowerCase().replace(/[^a-z0-9]/g, "-") },
-      update: {},
-      create: pkg,
-    });
+    const existing = await prisma.packagingOption.findFirst({ where: { name: pkg.name } });
+    if (!existing) {
+      await prisma.packagingOption.create({ data: pkg });
+    }
   }
   console.log(`✅ ${packagingData.length} packaging options created`);
 
   // ─── 9. WAREHOUSES ────────────────────────────────────
   const warehousesData = [
-    { 
+    {
       name: "Main Warehouse",
       code: "WH-MAIN",
       city: "Hyderabad",
       state: "Telangana",
       address: "Hyderabad, Telangana",
-      warehouseType: "GENERAL" as WarehouseType 
+      warehouseType: WarehouseType.STORAGE,
     },
-    { 
+    {
       name: "FG Store",
       code: "WH-FG",
       city: "Hyderabad",
       state: "Telangana",
       address: "Hyderabad, Telangana",
-      warehouseType: "FINISHED_GOODS" as WarehouseType
+      warehouseType: WarehouseType.STORAGE,
     },
-    { 
+    {
       name: "RM Store",
       code: "WH-RM",
       city: "Hyderabad",
       state: "Telangana",
       address: "Hyderabad, Telangana",
-      warehouseType: "RAW_MATERIALS" as WarehouseType
+      warehouseType: WarehouseType.MANUFACTURING,
     },
-    { 
+    {
       name: "Packaging Store",
       code: "WH-PKG",
       city: "Hyderabad",
       state: "Telangana",
       address: "Hyderabad, Telangana",
-      warehouseType: "PACKAGING" as WarehouseType
+      warehouseType: WarehouseType.STORAGE,
     }
   ];
 
