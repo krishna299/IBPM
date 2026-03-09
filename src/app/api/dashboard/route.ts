@@ -69,8 +69,8 @@ export async function GET() {
       prisma.$queryRaw<any[]>`
         SELECT p."name", p."sku", p."itemType", p."reorderLevel",
               COALESCE(SUM(i."quantityOnHand"), 0) as "currentStock"
-        FROM "Product" p
-        LEFT JOIN "Inventory" i ON i."productId" = p."id"
+        FROM "products" p
+        LEFT JOIN "inventory" i ON i."productId" = p."id"
         WHERE p."isActive" = true AND p."reorderLevel" > 0
         GROUP BY p."id", p."name", p."sku", p."itemType", p."reorderLevel"
         HAVING COALESCE(SUM(i."quantityOnHand"), 0) < p."reorderLevel"
