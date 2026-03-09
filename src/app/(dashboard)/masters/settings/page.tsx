@@ -16,48 +16,40 @@ type Tab = 'tax-config' | 'uom' | 'packaging' | 'price-lists';
 interface TaxConfig {
   id: string;
   name: string;
-  hsnCode: string;
-  cgstPercent: number;
-  sgstPercent: number;
-  igstPercent: number;
-  cessPercent: number;
-  productsCount: number;
+  rate: number;
+  taxType: 'GST' | 'IGST' | 'EXEMPT';
+  hsnRange: string | null;
+  _count: { products: number };
 }
 
 interface UOM {
   id: string;
   name: string;
   abbreviation: string;
-  productsCount: number;
+  _count: { products: number };
 }
 
 interface Packaging {
   id: string;
   name: string;
-  description: string;
-  materialType: string;
-  size: string;
+  type: string;
+  material: string | null;
   costPerUnit: number;
-  linkedProducts: number;
+  _count: { productPackaging: number };
 }
 
 interface PriceList {
   id: string;
   name: string;
-  description: string;
-  currency: string;
-  validFrom: string;
-  validTo: string;
-  itemsCount: number;
+  type: 'RETAIL' | 'WHOLESALE' | 'DISTRIBUTOR' | 'CUSTOM';
+  _count: { items: number };
 }
 
 interface TaxConfigForm {
   name: string;
-  hsnCode: string;
-  cgstPercent: number;
-  sgstPercent: number;
-  igstPercent: number;
-  cessPercent: number;
+  rate: number;
+  taxType: 'GST' | 'IGST' | 'EXEMPT';
+  hsnRange: string;
 }
 
 interface UOMForm {
@@ -67,18 +59,14 @@ interface UOMForm {
 
 interface PackagingForm {
   name: string;
-  description: string;
-  materialType: string;
-  size: string;
+  type: string;
+  material: string;
   costPerUnit: number;
 }
 
 interface PriceListForm {
   name: string;
-  description: string;
-  currency: string;
-  validFrom: string;
-  validTo: string;
+  type: 'RETAIL' | 'WHOLESALE' | 'DISTRIBUTOR' | 'CUSTOM';
 }
 
 export default function SettingsPage() {
@@ -90,11 +78,9 @@ export default function SettingsPage() {
   const [showTaxModal, setShowTaxModal] = useState(false);
   const [taxForm, setTaxForm] = useState<TaxConfigForm>({
     name: '',
-    hsnCode: '',
-    cgstPercent: 0,
-    sgstPercent: 0,
-    igstPercent: 0,
-    cessPercent: 0,
+    rate: 0,
+    taxType: 'GST',
+    hsnRange: '',
   });
 
   // UOM State
@@ -110,9 +96,8 @@ export default function SettingsPage() {
   const [showPackagingModal, setShowPackagingModal] = useState(false);
   const [packagingForm, setPackagingForm] = useState<PackagingForm>({
     name: '',
-    description: '',
-    materialType: '',
-    size: '',
+    type: '',
+    material: '',
     costPerUnit: 0,
   });
 
@@ -121,10 +106,7 @@ export default function SettingsPage() {
   const [showPriceListModal, setShowPriceListModal] = useState(false);
   const [priceListForm, setPriceListForm] = useState<PriceListForm>({
     name: '',
-    description: '',
-    currency: 'INR',
-    validFrom: '',
-    validTo: '',
+    type: 'RETAIL',
   });
 
   // Fetch Tax Configs
@@ -134,7 +116,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/masters/tax-configs');
       if (response.ok) {
         const data = await response.json();
-        setTaxConfigs(data);
+        setTaxConfigs(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching tax configs:', error);
@@ -150,7 +132,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/masters/uom');
       if (response.ok) {
         const data = await response.json();
-        setUoms(data);
+        setUoms(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching UOMs:', error);
@@ -166,7 +148,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/masters/packaging');
       if (response.ok) {
         const data = await response.json();
-        setPackagings(data);
+        setPackagings(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching packaging:', error);
@@ -182,7 +164,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/masters/price-lists');
       if (response.ok) {
         const data = await response.json();
-        setPriceLists(data);
+        setPriceLists(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching price lists:', error);
@@ -211,21 +193,17 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/masters/tax-configs', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(taxForm),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: taxForm.name,
+          rate: taxForm.rate,
+          taxType: taxForm.taxType,
+          hsnRange: taxForm.hsnRange || undefined,
+        }),
       });
       if (response.ok) {
         setShowTaxModal(false);
-        setTaxForm({
-          name: '',
-          hsnCode: '',
-          cgstPercent: 0,
-          sgstPercent: 0,
-          igstPercent: 0,
-          cessPercent: 0,
-        });
+        setTaxForm({ name: '', rate: 0, taxType: 'GST', hsnRange: '' });
         fetchTaxConfigs();
       }
     } catch (error) {
@@ -239,17 +217,12 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/masters/uom', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(uomForm),
       });
       if (response.ok) {
         setShowUOMModal(false);
-        setUomForm({
-          name: '',
-          abbreviation: '',
-        });
+        setUomForm({ name: '', abbreviation: '' });
         fetchUOMs();
       }
     } catch (error) {
@@ -263,20 +236,16 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/masters/packaging', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(packagingForm),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: packagingForm.name,
+          materialType: packagingForm.type,
+          costPerUnit: packagingForm.costPerUnit,
+        }),
       });
       if (response.ok) {
         setShowPackagingModal(false);
-        setPackagingForm({
-          name: '',
-          description: '',
-          materialType: '',
-          size: '',
-          costPerUnit: 0,
-        });
+        setPackagingForm({ name: '', type: '', material: '', costPerUnit: 0 });
         fetchPackaging();
       }
     } catch (error) {
@@ -290,20 +259,12 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/masters/price-lists', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(priceListForm),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: priceListForm.name, type: priceListForm.type }),
       });
       if (response.ok) {
         setShowPriceListModal(false);
-        setPriceListForm({
-          name: '',
-          description: '',
-          currency: 'INR',
-          validFrom: '',
-          validTo: '',
-        });
+        setPriceListForm({ name: '', type: 'RETAIL' });
         fetchPriceLists();
       }
     } catch (error) {
@@ -398,64 +359,23 @@ export default function SettingsPage() {
                 <table className="w-full">
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        HSN Code
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        CGST%
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        SGST%
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        IGST%
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Cess%
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Total Tax%
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Products
-                      </th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tax Type</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Rate%</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">HSN Range</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Products</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {taxConfigs.map((config) => {
-                      const totalTax =
-                        config.cgstPercent +
-                        config.sgstPercent +
-                        config.igstPercent +
-                        config.cessPercent;
-                      return (
-                        <tr key={config.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm text-gray-900">{config.name}</td>
-                          <td className="px-6 py-4 text-sm text-gray-500">{config.hsnCode}</td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {config.cgstPercent.toFixed(2)}%
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {config.sgstPercent.toFixed(2)}%
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {config.igstPercent.toFixed(2)}%
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {config.cessPercent.toFixed(2)}%
-                          </td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                            {totalTax.toFixed(2)}%
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {config.productsCount}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {taxConfigs.map((config) => (
+                      <tr key={config.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-900">{config.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{config.taxType}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{config.rate.toFixed(2)}%</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{config.hsnRange || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{config._count.products}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -467,117 +387,56 @@ export default function SettingsPage() {
                 <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
                   <div className="flex justify-between items-center p-6 border-b border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900">Add Tax Configuration</h3>
-                    <button
-                      onClick={() => setShowTaxModal(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
+                    <button onClick={() => setShowTaxModal(false)} className="text-gray-400 hover:text-gray-600">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
                   <form onSubmit={handleTaxSubmit} className="p-6 space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Name
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Name</label>
                       <input
                         type="text"
                         value={taxForm.name}
-                        onChange={(e) =>
-                          setTaxForm({ ...taxForm, name: e.target.value })
-                        }
+                        onChange={(e) => setTaxForm({ ...taxForm, name: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        HSN Code
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Tax Type</label>
+                      <select
+                        value={taxForm.taxType}
+                        onChange={(e) => setTaxForm({ ...taxForm, taxType: e.target.value as 'GST' | 'IGST' | 'EXEMPT' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="GST">GST</option>
+                        <option value="IGST">IGST</option>
+                        <option value="EXEMPT">EXEMPT</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Rate (%)</label>
                       <input
-                        type="text"
-                        value={taxForm.hsnCode}
-                        onChange={(e) =>
-                          setTaxForm({ ...taxForm, hsnCode: e.target.value })
-                        }
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={taxForm.rate}
+                        onChange={(e) => setTaxForm({ ...taxForm, rate: parseFloat(e.target.value) })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-900 mb-1">
-                          CGST%
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={taxForm.cgstPercent}
-                          onChange={(e) =>
-                            setTaxForm({
-                              ...taxForm,
-                              cgstPercent: parseFloat(e.target.value),
-                            })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-900 mb-1">
-                          SGST%
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={taxForm.sgstPercent}
-                          onChange={(e) =>
-                            setTaxForm({
-                              ...taxForm,
-                              sgstPercent: parseFloat(e.target.value),
-                            })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-900 mb-1">
-                          IGST%
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={taxForm.igstPercent}
-                          onChange={(e) =>
-                            setTaxForm({
-                              ...taxForm,
-                              igstPercent: parseFloat(e.target.value),
-                            })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-900 mb-1">
-                          Cess%
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={taxForm.cessPercent}
-                          onChange={(e) =>
-                            setTaxForm({
-                              ...taxForm,
-                              cessPercent: parseFloat(e.target.value),
-                            })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">HSN Range (optional)</label>
+                      <input
+                        type="text"
+                        value={taxForm.hsnRange}
+                        onChange={(e) => setTaxForm({ ...taxForm, hsnRange: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g. 3304"
+                      />
                     </div>
                     <div className="flex gap-3 pt-4">
                       <button
@@ -624,15 +483,9 @@ export default function SettingsPage() {
                 <table className="w-full">
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Abbreviation
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Products Count
-                      </th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Abbreviation</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Products Count</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -640,7 +493,7 @@ export default function SettingsPage() {
                       <tr key={uom.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-sm text-gray-900">{uom.name}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">{uom.abbreviation}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{uom.productsCount}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{uom._count.products}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -654,18 +507,13 @@ export default function SettingsPage() {
                 <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
                   <div className="flex justify-between items-center p-6 border-b border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900">Add Unit of Measure</h3>
-                    <button
-                      onClick={() => setShowUOMModal(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
+                    <button onClick={() => setShowUOMModal(false)} className="text-gray-400 hover:text-gray-600">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
                   <form onSubmit={handleUOMSubmit} className="p-6 space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Name
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Name</label>
                       <input
                         type="text"
                         value={uomForm.name}
@@ -675,15 +523,11 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Abbreviation
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Abbreviation</label>
                       <input
                         type="text"
                         value={uomForm.abbreviation}
-                        onChange={(e) =>
-                          setUomForm({ ...uomForm, abbreviation: e.target.value })
-                        }
+                        onChange={(e) => setUomForm({ ...uomForm, abbreviation: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
@@ -733,37 +577,21 @@ export default function SettingsPage() {
                 <table className="w-full">
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Description
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Material Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Size
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Cost/Unit
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Linked Products
-                      </th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Type</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Material</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Cost/Unit</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Linked Products</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {packagings.map((pkg) => (
                       <tr key={pkg.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-sm text-gray-900">{pkg.name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{pkg.description}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{pkg.materialType}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{pkg.size}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          Rs. {pkg.costPerUnit.toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{pkg.linkedProducts}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{pkg.type}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{pkg.material || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">Rs. {pkg.costPerUnit.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{pkg._count.productPackaging}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -777,83 +605,51 @@ export default function SettingsPage() {
                 <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
                   <div className="flex justify-between items-center p-6 border-b border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900">Add Packaging Option</h3>
-                    <button
-                      onClick={() => setShowPackagingModal(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
+                    <button onClick={() => setShowPackagingModal(false)} className="text-gray-400 hover:text-gray-600">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
                   <form onSubmit={handlePackagingSubmit} className="p-6 space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Name
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Name</label>
                       <input
                         type="text"
                         value={packagingForm.name}
-                        onChange={(e) =>
-                          setPackagingForm({ ...packagingForm, name: e.target.value })
-                        }
+                        onChange={(e) => setPackagingForm({ ...packagingForm, name: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Description
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Type</label>
                       <input
                         type="text"
-                        value={packagingForm.description}
-                        onChange={(e) =>
-                          setPackagingForm({ ...packagingForm, description: e.target.value })
-                        }
+                        value={packagingForm.type}
+                        onChange={(e) => setPackagingForm({ ...packagingForm, type: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g. bottle, tube, jar, box"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Material Type
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Material (optional)</label>
                       <input
                         type="text"
-                        value={packagingForm.materialType}
-                        onChange={(e) =>
-                          setPackagingForm({ ...packagingForm, materialType: e.target.value })
-                        }
+                        value={packagingForm.material}
+                        onChange={(e) => setPackagingForm({ ...packagingForm, material: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
+                        placeholder="e.g. plastic, glass, aluminum"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Size
-                      </label>
-                      <input
-                        type="text"
-                        value={packagingForm.size}
-                        onChange={(e) =>
-                          setPackagingForm({ ...packagingForm, size: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Cost Per Unit
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Cost Per Unit</label>
                       <input
                         type="number"
                         step="0.01"
+                        min="0"
                         value={packagingForm.costPerUnit}
                         onChange={(e) =>
-                          setPackagingForm({
-                            ...packagingForm,
-                            costPerUnit: parseFloat(e.target.value),
-                          })
+                          setPackagingForm({ ...packagingForm, costPerUnit: parseFloat(e.target.value) })
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
@@ -904,41 +700,17 @@ export default function SettingsPage() {
                 <table className="w-full">
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Description
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Currency
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Valid From
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Valid To
-                      </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                        Items Count
-                      </th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Type</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Items Count</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {priceLists.map((priceList) => (
                       <tr key={priceList.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-sm text-gray-900">{priceList.name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {priceList.description}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{priceList.currency}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {new Date(priceList.validFrom).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {new Date(priceList.validTo).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{priceList.itemsCount}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{priceList.type}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{priceList._count.items}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -952,86 +724,39 @@ export default function SettingsPage() {
                 <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
                   <div className="flex justify-between items-center p-6 border-b border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900">Add Price List</h3>
-                    <button
-                      onClick={() => setShowPriceListModal(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
+                    <button onClick={() => setShowPriceListModal(false)} className="text-gray-400 hover:text-gray-600">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
                   <form onSubmit={handlePriceListSubmit} className="p-6 space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Name
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Name</label>
                       <input
                         type="text"
                         value={priceListForm.name}
-                        onChange={(e) =>
-                          setPriceListForm({ ...priceListForm, name: e.target.value })
-                        }
+                        onChange={(e) => setPriceListForm({ ...priceListForm, name: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Description
-                      </label>
-                      <input
-                        type="text"
-                        value={priceListForm.description}
-                        onChange={(e) =>
-                          setPriceListForm({ ...priceListForm, description: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Currency
-                      </label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Type</label>
                       <select
-                        value={priceListForm.currency}
+                        value={priceListForm.type}
                         onChange={(e) =>
-                          setPriceListForm({ ...priceListForm, currency: e.target.value })
+                          setPriceListForm({
+                            ...priceListForm,
+                            type: e.target.value as 'RETAIL' | 'WHOLESALE' | 'DISTRIBUTOR' | 'CUSTOM',
+                          })
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       >
-                        <option value="INR">INR</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
+                        <option value="RETAIL">Retail</option>
+                        <option value="WHOLESALE">Wholesale</option>
+                        <option value="DISTRIBUTOR">Distributor</option>
+                        <option value="CUSTOM">Custom</option>
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Valid From
-                      </label>
-                      <input
-                        type="date"
-                        value={priceListForm.validFrom}
-                        onChange={(e) =>
-                          setPriceListForm({ ...priceListForm, validFrom: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">
-                        Valid To
-                      </label>
-                      <input
-                        type="date"
-                        value={priceListForm.validTo}
-                        onChange={(e) =>
-                          setPriceListForm({ ...priceListForm, validTo: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
                     </div>
                     <div className="flex gap-3 pt-4">
                       <button
