@@ -341,35 +341,27 @@ async function main() {
     {
       name: "Main Warehouse",
       code: "WH-MAIN",
-      city: "Hyderabad",
-      state: "Telangana",
-      address: "Hyderabad, Telangana",
+      address: { line1: "Main Warehouse", city: "Hyderabad", state: "Telangana", pincode: "500001", country: "India" },
       warehouseType: WarehouseType.STORAGE,
     },
     {
       name: "FG Store",
       code: "WH-FG",
-      city: "Hyderabad",
-      state: "Telangana",
-      address: "Hyderabad, Telangana",
+      address: { line1: "FG Store", city: "Hyderabad", state: "Telangana", pincode: "500001", country: "India" },
       warehouseType: WarehouseType.STORAGE,
     },
     {
       name: "RM Store",
       code: "WH-RM",
-      city: "Hyderabad",
-      state: "Telangana",
-      address: "Hyderabad, Telangana",
+      address: { line1: "RM Store", city: "Hyderabad", state: "Telangana", pincode: "500001", country: "India" },
       warehouseType: WarehouseType.MANUFACTURING,
     },
     {
       name: "Packaging Store",
       code: "WH-PKG",
-      city: "Hyderabad",
-      state: "Telangana",
-      address: "Hyderabad, Telangana",
+      address: { line1: "Packaging Store", city: "Hyderabad", state: "Telangana", pincode: "500001", country: "India" },
       warehouseType: WarehouseType.STORAGE,
-    }
+    },
   ];
 
   for (const wh of warehousesData) {
