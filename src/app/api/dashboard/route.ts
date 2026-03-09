@@ -150,7 +150,11 @@ export async function GET() {
         totalPaid: totalPaidAmount._sum.amount || 0,
         outstanding: (totalInvoiceAmount._sum.grandTotal || 0) - (totalPaidAmount._sum.amount || 0),
       },
-      lowStockItems,
+      lowStockItems: lowStockItems.map((item: any) => ({
+        ...item,
+        currentStock: Number(item.currentStock),
+        reorderLevel: Number(item.reorderLevel),
+      })),
       recentOrders: recentOrders.map((o) => ({
         id: o.id,
         orderNumber: o.orderNumber,
